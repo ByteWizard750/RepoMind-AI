@@ -171,6 +171,47 @@
 
   #results { display: none; }
 
+  /* ---------- result tabs ---------- */
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    overflow-x: auto;
+    margin: 0 0 1.5rem;
+    padding: 0.7rem 0;
+    background: var(--bg);
+    border-bottom: 3px solid var(--border);
+    scrollbar-width: none;   /* narrow screens swipe the strip; the selected tab is kept in view */
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs [role=tab] {
+    flex: 1 0 auto;
+    margin-right: -2px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    background: var(--surface);
+    color: var(--text-dim);
+    border: 2px solid var(--text-dim);
+    box-shadow: none;
+  }
+  .tabs [role=tab]:last-child { margin-right: 0; }
+  .tabs [role=tab]:hover:not(:disabled),.tabs [role=tab]:active:not(:disabled) { transform: none; box-shadow: none; }
+  .tabs [role=tab]:hover { color: var(--text); background: var(--surface-2); }
+  .tabs [role=tab][aria-selected=true] {
+    position: relative;
+    background: var(--invert-bg);
+    color: var(--invert-text);
+    border-color: var(--border);
+  }
+  .tabs [role=tab]:focus-visible { outline-offset: -5px; outline-color: currentColor; }
+  /* AI content still being generated in that tab */
+  .tabs [role=tab].busy::after { content: '...'; display: inline-block; width: 2ch; text-align: left; }
+  @media (prefers-reduced-motion: no-preference) {
+    .tabs [role=tab].busy::after { animation: dots 1.2s steps(4, end) infinite; content: ''; }
+  }
+
   section {
     margin: 0 0 2rem;
     padding: 1.5rem;
@@ -632,7 +673,17 @@
 
   <div id="results">
     <div id="scope-notice" class="notice"></div>
-    <section>
+    <div class="tabs" role="tablist" aria-label="Analysis results">
+      <button type="button" role="tab" id="tab-overview" aria-controls="panel-overview">Overview</button>
+      <button type="button" role="tab" id="tab-drift" aria-controls="panel-drift">Drift</button>
+      <button type="button" role="tab" id="tab-review" aria-controls="panel-review">Code Review</button>
+      <button type="button" role="tab" id="tab-history" aria-controls="panel-history">History</button>
+      <button type="button" role="tab" id="tab-diagram" aria-controls="panel-diagram">Diagram</button>
+      <button type="button" role="tab" id="tab-decisions" aria-controls="panel-decisions">Decisions</button>
+      <button type="button" role="tab" id="tab-docs" aria-controls="panel-docs">Docs</button>
+    </div>
+
+    <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
       <h2>Overview <span class="h2-note" id="overview-note"></span></h2>
       <div class="stats">
         <div class="stat"><span class="value" id="stat-files">0</span><span class="label">files parsed</span></div>
@@ -644,7 +695,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="panel-drift" role="tabpanel" aria-labelledby="tab-drift">
       <h2>Architecture Drift <span class="h2-note">deterministic rule engine + AI explanations</span></h2>
       <div class="health-row">
         <div class="health-box" id="health-box">
@@ -657,7 +708,7 @@
       <div id="violations"></div>
     </section>
 
-    <section>
+    <section id="panel-review" role="tabpanel" aria-labelledby="tab-review">
       <h2>Code Review <span class="h2-note">recent changes · raised as GitHub issues</span></h2>
       <p class="section-lead">Reviews the diff of the latest commits. Rule violations those commits introduced come from the rule engine; the AI reports bugs, security and error-handling problems in the changed lines, and every AI finding must quote a line the commits added, or it is dropped. Nothing is posted to GitHub until you press Raise; issues already raised or closed are never raised again.</p>
       <div class="review-controls">
@@ -678,7 +729,7 @@
       <div class="raise-result" id="raise-result" aria-live="polite"></div>
     </section>
 
-    <section>
+    <section id="panel-history" role="tabpanel" aria-labelledby="tab-history">
       <h2>Drift Over Time <span class="h2-note" id="trend-note"></span></h2>
       <p class="section-lead">Health at evenly spaced code-changing commits along the main history (the last point is HEAD). Select a point to see the architecture as it was then, rebuilt from the temporal graph.</p>
       <div class="chart-wrap" id="trend-chart"></div>
@@ -699,18 +750,18 @@
       </div>
     </section>
 
-    <section>
+    <section id="panel-diagram" role="tabpanel" aria-labelledby="tab-diagram">
       <h2>Module Dependency Diagram <span class="h2-note">current state (HEAD)</span></h2>
       <div id="diagram-container"></div>
     </section>
 
-    <section>
+    <section id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions">
       <h2>Architecture Decisions <span class="h2-note">reconstructed from history</span></h2>
       <p class="section-lead">Decision points are detected deterministically (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved). Nearby commits are ranked by relevance = 0.3·time + 0.45·graph + 0.25·text, and the AI writes each record only from that evidence. Reasons are inferred, never confirmed intent.</p>
       <div id="decisions"></div>
     </section>
 
-    <section>
+    <section id="panel-docs" role="tabpanel" aria-labelledby="tab-docs">
       <h2>Documentation <span class="h2-note">AI-written, grounded in the graph</span></h2>
       <div id="documentation"></div>
     </section>
@@ -826,6 +877,52 @@
       svgEl.style.maxWidth = 'none';
     }
   }
+
+  // ---------- result tabs ----------
+  const tabBar = document.querySelector('.tabs');
+  const tabs = [...tabBar.querySelectorAll('[role=tab]')];
+  const panelOf = (tab) => $(tab.getAttribute('aria-controls'));
+
+  function selectTab(tab, focus = false) {
+    for (const t of tabs) {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      panelOf(t).hidden = !on;
+    }
+    if (focus) tab.focus();
+    // Keep the selected tab in view when the bar scrolls sideways (phones).
+    if (tab.offsetLeft < tabBar.scrollLeft) tabBar.scrollLeft = tab.offsetLeft;
+    else if (tab.offsetLeft + tab.offsetWidth > tabBar.scrollLeft + tabBar.clientWidth) {
+      tabBar.scrollLeft = tab.offsetLeft + tab.offsetWidth - tabBar.clientWidth;
+    }
+    // Scrolled down into the old tab: start the new one at its top, just under the bar.
+    if (!resultsEl.offsetParent) return;
+    const below = tabBar.getBoundingClientRect().bottom + parseFloat(getComputedStyle(tabBar).marginBottom);
+    const top = panelOf(tab).getBoundingClientRect().top;
+    if (top < below) window.scrollBy(0, top - below);
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', (e) => {
+      const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (next === undefined) return;
+      e.preventDefault();
+      selectTab(tabs[(next + tabs.length) % tabs.length], true);
+    });
+  });
+  selectTab(tabs[0]);
+
+  // Mark tabs whose AI sections are still being generated.
+  let busyTimer = 0;
+  new MutationObserver(() => {
+    if (busyTimer) return;
+    busyTimer = setTimeout(() => {
+      busyTimer = 0;
+      for (const t of tabs) t.classList.toggle('busy', !!panelOf(t).querySelector('.pending.active'));
+    });
+  }).observe(resultsEl, { childList: true, subtree: true });
 
   // ---------- rules editor ----------
   const rulesPanel = $('rules-panel');
