@@ -319,7 +319,7 @@
   },
   "live": [
     {
-      "target": "C:\\Users\\komma\\AppData\\Local\\Temp\\repomind_evalqa__k44sm01\\repo",
+      "target": "C:\\Users\\komma\\AppData\\Local\\Temp\\repomind_evalqa_yeij_bh6\\repo",
       "evidence": [
         {
           "question": "Which modules import `cache.py`?",
@@ -418,7 +418,174 @@
           "complete": true
         }
       ],
-      "results": []
+      "results": [
+        {
+          "question": "Which modules import `cache.py`?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "search_source_text",
+            "search_entities",
+            "get_module_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 3,
+          "citations_valid": 3,
+          "answer": "`cache.py` is imported by the following module:\n\n- `service.py` (`cache.py::imported_by`)  \n\n**Confidence:** High \u2013 directly listed in the module\u2011detail data."
+        },
+        {
+          "question": "Which modules does `service.py` import?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_module_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 3,
+          "citations_valid": 3,
+          "answer": "`service.py` imports the following modules:\n\n- `cache.py`\n- `database.py`\n\n**Confidence:** High \u2014 directly listed in the module\u2019s import metadata."
+        },
+        {
+          "question": "Which functions call `process_order` (defined in `service.py`)?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "search_entities",
+            "get_function_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 3,
+          "citations_valid": 3,
+          "answer": "`process_order` is called by:\n\n- `controller.py::handle_request` (`service.py::process_order`)  \n\n**Confidence:** High \u2013 the call relationship is directly listed in the function\u2011detail graph."
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The architecture rule engine reports **zero violations**. Consequently, no modules contain any architecture violations.\n\n**Confidence:** High \u2013 the architecture health query explicitly lists an empty `violations` array."
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The architecture health score is **100.0**.\n\n**Confidence:** High \u2013 the rule\u2011engine report directly provides the current health_score value."
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "routed": [
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_contributors"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "Ada\u202fDev has made the most commits in the repository (8 commits) (`functions.get_contributors`)  \n\n**Confidence:** High \u2013 directly shown by the contributors data."
+        },
+        {
+          "question": "How many commits changed `controller.py`?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 1,
+          "citations_valid": 1,
+          "answer": "`controller.py` was changed in **3 commits**.  \n\n**Confidence:** High \u2013 directly reported by the file\u2011history tool."
+        },
+        {
+          "question": "Who last changed `controller.py`, and in which commit?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "The most recent change to **`controller.py`** was made by **Ada\u202fDev** in commit **`f496ae3`** (dated\u202f2023\u201111\u201121).\n\n**Confidence:** High \u2014 directly shown by the file\u2011history data."
+        },
+        {
+          "question": "When was `helpers.py` first added?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "search_entities",
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "`helpers.py` was first added in commit **e5759df** on **2023\u201111\u201120** (`2023-11-20T22:13:20+00:00`).\n\n**Confidence:** High \u2013 directly shown by the file\u2011history data."
+        },
+        {
+          "question": "Why was redis adopted?",
+          "intent": "rationale",
+          "routed": [
+            "rationale"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "list_decisions",
+            "explain_decision"
+          ],
+          "correct": true,
+          "cited_decision_commit": true,
+          "marked_as_inferred": true,
+          "citations_checked": 6,
+          "citations_valid": 6,
+          "answer": "Redis was added to the project as a caching solution to improve performance. The repository started as a layered Flask app with no caching (commit\u202f3eff39d). On\u202f2023\u201111\u201116 the team introduced the `redis` package in\u202frequirements.txt (commit\u202f9659399), indicating a need for faster data access and to reduce load on the database. Subsequent commits created a dedicated cache module (commit\u202f5021f20), added TTL handling (commit\u202ff1d6b39), and wired the cache into the service layer (commit\u202f2260274). The controller was later refactored to go through the service layer again (commit\u202ff496ae3), ensuring the new cache is used throughout the request flow. The decision was driven by performance/latency concerns outweighing the added operational complexity of an external cache.\n\n**Confidence:** High \u2013 the reconstructed decision record directly links the addition of Redis to performance\u2011related motivations and is supported by multiple commits."
+        }
+      ]
     },
     {
       "target": "https://github.com/hagopj13/node-express-boilerplate",
@@ -520,7 +687,170 @@
           "complete": true
         }
       ],
-      "results": []
+      "results": [
+        {
+          "question": "Which modules import `src/config/config.js`?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_module_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 16,
+          "citations_valid": 16,
+          "answer": "The following modules import **`src/config/config.js`**:\n\n- `src/app.js`\n- `src/config/logger.js`\n- `src/config/morgan.js`\n- `src/config/passport.js`\n- `src/docs/swaggerDef.js`\n- `src/index.js`\n- `src/middlewares/error.js`\n- `src/routes/v1/index.js`\n- `src/services/email.service.js`\n- `src/services/token.service.js`\n- `tests/fixtures/token.fixture.js`\n- `tests/integration/auth.test.js`\n- `tests/integration/docs.test.js`\n- `tests/unit/middlewares/error.test.js`\n- `tests/utils/setupTestDB.js`\n\n**Source:** `src/config/config.js` shows these modules in its `imported_by` list (`src/config/config.js`).  \n\n**Confidence:** High \u2013 directly listed in the module\u2019s metadata."
+        },
+        {
+          "question": "Which modules does `tests/integration/auth.test.js` import?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "read_source"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 5,
+          "citations_valid": 5,
+          "answer": "`tests/integration/auth.test.js` imports the following modules:\n\n| Imported name | Module path (as used in `require`) |\n|---------------|-----------------------------------|\n| `request` | `supertest` |\n| `faker` | `faker` |\n| `httpStatus` | `http-status` |\n| `httpMocks` | `node-mocks-http` |\n| `moment` | `moment` |\n| `bcrypt` | `bcryptjs` |\n| `app` | `../../src/app` |\n| `config` | `../../src/config/config` |\n| `auth` | `../../src/middlewares/auth` |\n| `tokenService`, `emailService` | `../../src/services` |\n| `ApiError` | `../../src/utils/ApiError` |\n| `setupTestDB` | `../utils/setupTestDB` |\n| `User`, `Token` | `../../src/models` |\n| `roleRights` | `../../src/config/roles` |\n| `tokenTypes` | `../../src/config/tokens` |\n| `userOne`, `admin`, `insertUsers` | `../fixtures/user.fixture` |\n| `userOneAccessToken`, `adminAccessToken` | `../fixtures/token.fixture` |\n\nThese imports are visible at the top of the file (lines\u202f1\u201117) (`tests/integration/auth.test.js:L1-L17`).  \n\n**Confidence:** High \u2013 directly extracted from the source file."
+        },
+        {
+          "question": "Which functions call `getUserById` (defined in `src/services/user.service.js`)?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_function_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 9,
+          "citations_valid": 9,
+          "answer": "The following functions invoke **`getUserById`**:\n\n| Caller | Module |\n|--------|--------|\n| `refreshAuth` | `src/services/auth.service.js` |\n| `resetPassword` | `src/services/auth.service.js` |\n| `verifyEmail` | `src/services/auth.service.js` |\n| `deleteUserById` | `src/services/user.service.js` |\n| `updateUserById` | `src/services/user.service.js` |\n\n*Evidence:* `src/services/user.service.js::getUserById` shows these callers in its `called_by` list (`src/services/user.service.js::getUserById`).  \n\n**Confidence:** High \u2014 directly listed by the repository graph."
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The architecture rule engine reports **zero violations** for the current snapshot of the repository. No modules are flagged for any disallowed import or call relationships.\n\n**Confidence:** High \u2013 the architecture health query explicitly lists an empty `violations` array."
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The architecture health score is **100.0** (perfect health) with no violations detected.\n\n**Confidence:** High \u2013 the health score is reported directly by the architecture rule\u2011engine tool."
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "routed": [
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_contributors"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "**Hagop Jamkojian** has made the most commits to the repository, with **166** commits (first on\u202f2019\u201110\u201125, last on\u202f2021\u201107\u201104) (`functions.get_contributors`).\n\n**Confidence:** High \u2013 directly reported by the contributors summary."
+        },
+        {
+          "question": "How many commits changed `tests/integration/auth.test.js`?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 1,
+          "citations_valid": 1,
+          "answer": "`tests/integration/auth.test.js` was changed in **23 commits**.\n\n**Confidence:** High \u2013 directly reported by the file\u2011history tool."
+        },
+        {
+          "question": "Who last changed `tests/integration/auth.test.js`, and in which commit?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "The most recent change to **`tests/integration/auth.test.js`** was made by **Hagop\u202fJamkojian** in commit **`40b6294`** (dated\u202f2021\u201103\u201130).  \n\n**Confidence:** High \u2013 directly shown by the file\u2011history data."
+        },
+        {
+          "question": "When was `tests/unit/models/plugins/paginate.plugin.test.js` first added?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "`tests/unit/models/plugins/paginate.plugin.test.js` was introduced in commit **aad3e07** on **2020\u201112\u201127**.  \n\n**Confidence:** High \u2013 the file\u2019s git history shows it was added in that commit."
+        },
+        {
+          "question": "Why was dotenv adopted?",
+          "intent": "rationale",
+          "routed": [
+            "rationale"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "list_decisions",
+            "explain_decision"
+          ],
+          "correct": true,
+          "cited_decision_commit": true,
+          "marked_as_inferred": true,
+          "citations_checked": 4,
+          "citations_valid": 4,
+          "answer": "**Reasoning**\n\nThe repository introduced the **dotenv** (and **cross\u2011env**) packages on 2019\u201110\u201125 (commit `687392e`). The reconstructed decision record shows that before this change the project hard\u2011coded values such as the server port and lacked any mechanism for environment\u2011specific configuration. The team added a `.env.example`, updated `.gitignore` to exclude `.env` files, created a config loader (`src/config/config.js`), and modified npm scripts to set `NODE_ENV` via cross\u2011env.\n\nFrom the decision record:\n\n* **Context** \u2013 Hard\u2011coded configuration (e.g., port\u202f3000) and no `NODE_ENV` handling.  \n* **Decision** \u2013 Add `dotenv` to load environment variables from a `.env` file and `cross\u2011env` to set `NODE_ENV` in scripts.  \n* **Consequences** \u2013 Subsequent code (e.g., MongoDB connection, logger) reads values from the new config module; `.env` files are ignored by Git, reducing accidental credential leaks.  \n\nThus, **dotenv was adopted to externalize configuration, allowing different values per deployment environment and avoiding hard\u2011coded settings**.\n\n**Evidence**\n\n* Commit `687392e` (\u201cUse environment variables\u201d) adds `dotenv` and `cross\u2011env`, creates `.env.example`, updates `.gitignore`, and adds a config loader.  \n* Later commits (`7fb4b28`, `9856be0`) reference the new config module for database connection and other settings, confirming its ongoing use.  \n\n**Confidence:** High \u2013 the decision record directly documents the rationale and the supporting commit changes."
+        }
+      ]
     },
     {
       "target": "https://github.com/nsidnev/fastapi-realworld-example-app",
@@ -623,7 +953,175 @@
           "complete": true
         }
       ],
-      "results": []
+      "results": [
+        {
+          "question": "Which modules import `app/models/domain/users.py`?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_change_impact"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 26,
+          "citations_valid": 26,
+          "answer": "The following modules import **`app/models/domain/users.py`** (direct dependents):\n\n- `app/api/dependencies/articles.py`\n- `app/api/dependencies/authentication.py`\n- `app/api/dependencies/comments.py`\n- `app/api/dependencies/profiles.py`\n- `app/api/routes/articles/articles_common.py`\n- `app/api/routes/articles/articles_resource.py`\n- `app/api/routes/comments.py`\n- `app/api/routes/profiles.py`\n- `app/api/routes/users.py`\n- `app/db/repositories/articles.py`\n- `app/db/repositories/comments.py`\n- `app/db/repositories/profiles.py`\n- `app/db/repositories/users.py`\n- `app/models/schemas/users.py`\n- `app/services/articles.py`\n- `app/services/comments.py`\n- `app/services/jwt.py`\n- `tests/conftest.py`\n- `tests/test_api/test_routes/test_articles.py`\n- `tests/test_api/test_routes/test_authentication.py`\n- `tests/test_api/test_routes/test_login.py`\n- `tests/test_api/test_routes/test_profiles.py`\n- `tests/test_api/test_routes/test_registration.py`\n- `tests/test_api/test_routes/test_users.py`\n- `tests/test_services/test_jwt.py`\n\nThese modules are listed as direct dependents of `app/models/domain/users.py` in the repository\u2019s dependency graph (`functions.get_change_impact`).\n\n**Confidence:** High \u2013 the list comes directly from the change\u2011impact analysis showing modules that import the target file."
+        },
+        {
+          "question": "Which modules does `app/api/dependencies/comments.py` import?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_module_details"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 13,
+          "citations_valid": 13,
+          "answer": "`app/api/dependencies/comments.py` imports the following modules:\n\n- `app/api/dependencies/__init__.py`\n- `app/api/dependencies/articles.py`\n- `app/api/dependencies/authentication.py`\n- `app/api/dependencies/database.py`\n- `app/db/errors.py`\n- `app/db/repositories/comments.py`\n- `app/models/domain/articles.py`\n- `app/models/domain/comments.py`\n- `app/models/domain/users.py`\n- `app/resources/__init__.py`\n- `app/resources/strings.py`\n- `app/services/comments.py`\n\n**Confidence:** High \u2013 directly listed in the module\u2019s import metadata."
+        },
+        {
+          "question": "Which functions call `__init__` (defined in `app/db/repositories/articles.py`)?",
+          "intent": "structural",
+          "routed": [
+            "structural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "search_entities",
+            "get_module_details",
+            "get_function_details",
+            "search_source_text"
+          ],
+          "precision": 1.0,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 16,
+          "citations_valid": 16,
+          "answer": "The `ArticlesRepository.__init__` method is called directly by the following test functions:\n\n| Caller | Location |\n|--------|----------|\n| `test_article` | `tests/conftest.py` |\n| `test_article_will_contain_only_attached_tags` | `tests/test_api/test_routes/test_articles.py` |\n| `test_empty_feed_if_user_has_not_followings` | `tests/test_api/test_routes/test_articles.py` |\n| `test_filtering_by_authors` | `tests/test_api/test_routes/test_articles.py` |\n| `test_filtering_by_favorited` | `tests/test_api/test_routes/test_articles.py` |\n| `test_filtering_by_tags` | `tests/test_api/test_routes/test_articles.py` |\n| `test_filtering_with_limit_and_offset` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_can_change_favorite_state` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_can_delete_his_article` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_can_not_change_article_state_twice` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_can_not_modify_article_that_is_not_authored_by_him` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_receiving_feed_with_limit_and_offset` | `tests/test_api/test_routes/test_articles.py` |\n| `test_user_will_receive_only_following_articles` | `tests/test_api/test_routes/test_articles.py` |\n\nThese callers are listed in the function\u2011detail graph for `app/db/repositories/articles.py::ArticlesRepository.__init__` (`app/db/repositories/articles.py::ArticlesRepository.__init__`).\n\n**Confidence:** High \u2013 the callers are explicitly recorded in the repository\u2019s call\u2011graph data."
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "precision": 0.875,
+          "recall": 1.0,
+          "correct": true,
+          "citations_checked": 9,
+          "citations_valid": 8,
+          "answer": "**Yes.** The architecture rules report violations of the *no\u2011controller\u2011imports\u2011db* rule. The modules (controllers) that contain these violations are:\n\n- `app/api/routes/articles/articles_common.py`\n- `app/api/routes/articles/articles_resource.py`\n- `app/api/routes/authentication.py`\n- `app/api/routes/comments.py`\n- `app/api/routes/profiles.py`\n- `app/api/routes/tags.py`\n- `app/api/routes/users.py`\n\nThese files import database\u2011layer modules (e.g., `app/api/dependencies/database.py`, `app/db/repositories/*.py`), which the layered architecture forbids.\n\n**Confidence:** Medium \u2013 the evidence lists these modules, but the full violation list was truncated, so there may be additional offending modules not shown."
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "routed": [
+            "architectural"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_architecture_health"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The architecture health score for the repository is **94.5** (`functions.get_architecture_health`).\n\n**Confidence:** High \u2013 the score is returned directly by the architecture\u2011rule engine."
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "routed": [
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_contributors"
+          ],
+          "correct": true,
+          "citations_checked": 0,
+          "citations_valid": 0,
+          "answer": "The contributor with the highest number of commits is **dependabot[bot]**, which made **70 commits** to the repository.  \n\n**Confidence:** High \u2013 directly shown by the contributors list."
+        },
+        {
+          "question": "How many commits changed `app/core/config.py`?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 1,
+          "citations_valid": 1,
+          "answer": "`app/core/config.py` was changed in **15 commits**.\n\n**Confidence:** High \u2013 directly reported by the file\u2011history data."
+        },
+        {
+          "question": "Who last changed `app/core/config.py`, and in which commit?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "The most recent change to **`app/core/config.py`** was made by **Alexander\u202fSheykin** in commit **`fa56dba`** (dated\u202f2021\u201111\u201104).  \n\n**Confidence:** High \u2013 directly shown by the file\u2011history data."
+        },
+        {
+          "question": "When was `app/core/settings/__init__.py` first added?",
+          "intent": "historical",
+          "routed": [
+            "structural",
+            "historical"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "get_file_history"
+          ],
+          "correct": true,
+          "citations_checked": 2,
+          "citations_valid": 2,
+          "answer": "`app/core/settings/__init__.py` was introduced in commit **fa56dba** on **2021\u201111\u201104** (`2021-11-04T07:01:57+00:00`).  \n\n**Confidence:** High \u2013 directly shown by the file\u2019s git history."
+        },
+        {
+          "question": "Why was attrs adopted?",
+          "intent": "rationale",
+          "routed": [
+            "rationale"
+          ],
+          "routed_ok": true,
+          "tools": [
+            "list_decisions",
+            "explain_decision"
+          ],
+          "correct": true,
+          "cited_decision_commit": true,
+          "marked_as_inferred": true,
+          "citations_checked": 1,
+          "citations_valid": 1,
+          "answer": "Attrs was added as part of a bulk dependency change on\u202f2019\u201102\u201107 (commit\u202f`cb170ea`). The reconstructed decision record shows that the developers wanted a \u201cmore straightforward way to manage environment variables\u201d and to \u201cestablish a testing foundation \u2026 along with data validation (attrs)\u201d. In other words, attrs was adopted to give the project a lightweight validation / schema library for its data models, complementing the new testing (pytest) and configuration (python\u2011dotenv) setup.\n\n**Confidence:** Medium \u2013 the decision record directly links the attrs addition to a desire for validation utilities, though the exact internal motivation is inferred from the commit context."
+        }
+      ]
     }
   ]
 }

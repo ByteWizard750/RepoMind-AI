@@ -129,14 +129,45 @@ NOT_ANSWERED = ("I gathered evidence for this question but couldn't put together
                 "Please ask again, or ask a narrower question.")
 
 
+_PLAN_START = re.compile(r"^\s*(we need to|we should|we must|let's|let us|i need to|i will|i'll)\b", re.IGNORECASE)
+# How gpt-oss ends untagged reasoning before writing the answer itself: "Provide answer.", "Now write the final answer:".
+_ANSWER_MARK = re.compile(r"(?:^|(?<=[.!\n]))\s*(?:now,?\s+)?(?:let's\s+|let us\s+|we\s+|i\s+)?(?:will\s+)?"
+                          r"(?:provide|write|give|produce|craft|compose|draft)\s+(?:the\s+|an?\s+)?(?:final\s+)?"
+                          r"(?:answer|response)\b[.:!]?", re.IGNORECASE)
+
+
+_TOOL_TALK = re.compile(r"\b(call|calls|tool|tools|invoke|" + "|".join(t["function"]["name"] for t in qa.TOOLS) + r")\b",
+                        re.IGNORECASE)
+
+
 def looks_like_plan(answer: str) -> bool:
-    """A short reply that talks about calling tools rather than answering."""
+    """A reply that talks about calling tools rather than answering: a short one
+    with planning phrasing, or one of any length that opens with planning and
+    talks about tools straight away."""
     text = (answer or "").strip()
-    return bool(text) and len(text) < 800 and bool(_PLANNING.search(text))
+    if not text:
+        return False
+    if len(text) < 800 and _PLANNING.search(text):
+        return True
+    return bool(_PLAN_START.match(text)) and bool(_TOOL_TALK.search(text[:400]))
+
+
+def strip_leaked_reasoning(answer: str) -> str:
+    """gpt-oss sometimes writes its reasoning into the answer, untagged ("We need
+    to call ... Provide answer."), followed by the real answer. Keep the answer."""
+    text = answer or ""
+    if not _PLAN_START.match(text):
+        return answer
+    marks = list(_ANSWER_MARK.finditer(text))
+    if marks:
+        rest = text[marks[-1].end():].strip()
+        if len(rest) >= 40 and not looks_like_plan(rest):
+            return rest
+    return answer
 
 
 def _finalize(state: QAState) -> dict:
-    answer = state.get("answer") or ""
+    answer = strip_leaked_reasoning(state.get("answer") or "")
     if looks_like_plan(answer):
         # Ask once more for the answer itself, from the evidence already gathered.
         messages = state["messages"]
@@ -145,7 +176,7 @@ def _finalize(state: QAState) -> dict:
         retry = qa.synthesis_messages(messages)
         retry[-1]["content"] += ("\n\nTools are no longer available. Do not describe further steps: write the "
                                  "final answer for me now.")
-        answer = llm.chat(retry, purpose="qa", max_tokens=qa.MAX_OUTPUT_TOKENS).content
+        answer = strip_leaked_reasoning(llm.chat(retry, purpose="qa", max_tokens=qa.MAX_OUTPUT_TOKENS).content)
         if looks_like_plan(answer):
             answer = NOT_ANSWERED
     answer = qa.clean_citations(answer).strip()

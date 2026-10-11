@@ -4,18 +4,18 @@
       "repo": "https://github.com/lam0819/MicroUI",
       "files": 23,
       "commits": 36,
-      "analysis_seconds": 12.6,
+      "analysis_seconds": 9.1,
       "timings": {
-        "clone": 1.54,
-        "parse": 1.29,
-        "graph_load": 2.52,
-        "rules": 0.62,
-        "diagram": 0.5,
-        "history_mining": 0.06,
-        "snapshots": 5.32,
-        "history_load": 0.77
+        "clone": 3.53,
+        "parse": 0.09,
+        "graph_load": 2.93,
+        "rules": 0.66,
+        "diagram": 0.51,
+        "history_mining": 0.07,
+        "snapshots": 0.54,
+        "history_load": 0.7
       },
-      "reanalysis_seconds": 11.7,
+      "reanalysis_seconds": 8.5,
       "cold": {
         "violations": {
           "seconds": 0.0,
@@ -24,14 +24,16 @@
           "skipped": true
         },
         "decisions": {
-          "seconds": 7.5,
-          "calls": 1,
-          "tokens": 3028
+          "seconds": 6.2,
+          "calls": 2,
+          "tokens": 5221,
+          "degraded": false
         },
         "documentation": {
-          "seconds": 32.8,
-          "calls": 7,
-          "tokens": 18167
+          "seconds": 9.8,
+          "calls": 8,
+          "tokens": 21955,
+          "degraded": false
         }
       },
       "warm_same": {
@@ -44,12 +46,14 @@
         "decisions": {
           "seconds": 0.7,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "documentation": {
-          "seconds": 67.7,
-          "calls": 8,
-          "tokens": 21521
+          "seconds": 0.0,
+          "calls": 0,
+          "tokens": 0,
+          "degraded": false
         }
       },
       "warm_reanalysis": {
@@ -60,14 +64,16 @@
           "skipped": true
         },
         "decisions": {
-          "seconds": 0.8,
+          "seconds": 1.1,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "documentation": {
           "seconds": 0.0,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         }
       }
     },
@@ -75,67 +81,76 @@
       "repo": "https://github.com/nsidnev/fastapi-realworld-example-app",
       "files": 95,
       "commits": 208,
-      "analysis_seconds": 14.0,
+      "analysis_seconds": 11.3,
       "timings": {
-        "clone": 1.88,
-        "parse": 0.44,
-        "graph_load": 2.58,
-        "rules": 0.69,
-        "diagram": 0.96,
-        "history_mining": 0.11,
-        "snapshots": 5.89,
-        "history_load": 1.43
+        "clone": 4.34,
+        "parse": 0.1,
+        "graph_load": 2.65,
+        "rules": 0.68,
+        "diagram": 0.55,
+        "history_mining": 0.14,
+        "snapshots": 1.47,
+        "history_load": 1.33
       },
-      "reanalysis_seconds": 12.2,
+      "reanalysis_seconds": 14.4,
       "cold": {
         "violations": {
-          "seconds": 2.2,
+          "seconds": 2.1,
           "calls": 1,
-          "tokens": 2211
+          "tokens": 2258,
+          "degraded": false
         },
         "decisions": {
-          "seconds": 63.9,
+          "seconds": 9.2,
           "calls": 8,
-          "tokens": 19096
+          "tokens": 18484,
+          "degraded": false
         },
         "documentation": {
-          "seconds": 151.7,
-          "calls": 23,
-          "tokens": 48673
+          "seconds": 18.1,
+          "calls": 24,
+          "tokens": 54239,
+          "degraded": false
         }
       },
       "warm_same": {
         "violations": {
-          "seconds": 0.9,
+          "seconds": 0.8,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "decisions": {
-          "seconds": 1.8,
+          "seconds": 1.5,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "documentation": {
           "seconds": 0.0,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         }
       },
       "warm_reanalysis": {
         "violations": {
-          "seconds": 0.6,
+          "seconds": 1.2,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "decisions": {
-          "seconds": 2.8,
+          "seconds": 3.9,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         },
         "documentation": {
           "seconds": 0.0,
           "calls": 0,
-          "tokens": 0
+          "tokens": 0,
+          "degraded": false
         }
       }
     }

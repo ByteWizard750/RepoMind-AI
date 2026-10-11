@@ -223,7 +223,574 @@
           "mean_evidence": 3.0,
           "mean_jaccard_vs_default": 0.9
         }
-      }
+      },
+      "reconstructions": [
+        {
+          "real": {
+            "path": "docs/adr/20200924-use-markdown-architectural-decision-records.md",
+            "title": "Use Markdown Architectural Decision Records",
+            "date": "2020-09-24",
+            "excerpt": "- Status: accepted - Date: 2020-09-24 ## Context and Problem Statement We want to record architectural decisions made in this project. Which format and structure should these records follow? ## Considered Options - [MADR](https://adr.github.io/madr/) 2.1.2 with Log4brains patch - [MADR](https://adr.github.io/madr/) 2.1.2 \u2013 The original Markdown Architectural Decision Records - [Michael Nygard's template](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions) \u2013 The first incarnation of the term \"ADR\" - [Sustainable Architectural Decisions](https://www.infoq.com/articles/sustainable-architectural-design-decisions) \u2013 The Y-Statements - Other templates listed at <https://g"
+          },
+          "reconstructed": {
+            "id": "7b9abae429",
+            "kind": "initial_stack",
+            "status": "Reconstructed (inferred)",
+            "date": "2020-09-25T16:34:23+00:00",
+            "decision_point": {
+              "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+              "short": "03550dc",
+              "detected": "Initial technology stack: chai (testing), jest (testing), joi (validation / schemas), next (web framework), nodemon (server / runtime), react (frontend framework)",
+              "commit_message": "feat: initial features"
+            },
+            "commits_considered": 1,
+            "affected_modules": [
+              "e2e-tests/e2e-launcher.js",
+              "packages/cli/src/cli.ts",
+              "packages/cli/src/commands/ListCommand.ts",
+              "packages/cli/src/commands/NewCommand.ts",
+              "packages/core/src/infrastructure/config/schema.ts",
+              "packages/global-cli/src/cli.ts",
+              "packages/global-cli/src/index.ts",
+              "packages/init/integration-tests/fake-entrypoint.ts",
+              "packages/init/src/cli.ts",
+              "packages/init/src/commands/InitCommand.ts",
+              "packages/web/cli/cli.ts",
+              "packages/web/cli/commands/build.ts",
+              "packages/web/cli/commands/preview.ts",
+              "packages/web/cli/utils.ts",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.stories.tsx",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.stories.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.tsx",
+              "packages/web/nextjs/src/components/Markdown/components/AdrLink/AdrLink.tsx",
+              "packages/web/nextjs/src/components/MarkdownHeading/MarkdownHeading.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.stories.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.test.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.stories.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.tsx",
+              "packages/web/nextjs/src/components/SearchBox/components/SearchBar/SearchBar.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.stories.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.tsx",
+              "packages/web/nextjs/src/contexts/AdrNavContext/AdrNavContext.ts",
+              "packages/web/nextjs/src/contexts/Log4brainsModeContext/Log4brainsModeContext.ts",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.stories.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/ConnectedAdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/AdrMenu/AdrMenu.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/ConnectedSearchBox/ConnectedSearchBox.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/RoutingProgress/RoutingProgress.tsx",
+              "packages/web/nextjs/src/lib-shared/search/Search.ts",
+              "packages/web/nextjs/src/lib-shared/types.ts",
+              "packages/web/nextjs/src/lib/core-api/instance.ts",
+              "packages/web/nextjs/src/lib/next.ts",
+              "packages/web/nextjs/src/lib/search/instance.ts",
+              "packages/web/nextjs/src/mui/MuiDecorator.tsx",
+              "packages/web/nextjs/src/pages/_app.tsx",
+              "packages/web/nextjs/src/pages/_document.tsx",
+              "packages/web/nextjs/src/pages/adr/[...slug].tsx",
+              "packages/web/nextjs/src/pages/api/adr.ts",
+              "packages/web/nextjs/src/pages/api/adr/[...slugAndMore].ts",
+              "packages/web/nextjs/src/pages/api/search-index.ts",
+              "packages/web/nextjs/src/pages/index.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.test.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
+            ],
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
+            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
+            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "alternatives": "",
+            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "evidence": [
+              {
+                "short": "03550dc",
+                "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+                "date": "2020-09-25T16:34:23+00:00",
+                "author": "Thomas Vaillant",
+                "message": "feat: initial features",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+              }
+            ],
+            "confidence": 0.3,
+            "confidence_label": "Low",
+            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.3,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        },
+        {
+          "real": {
+            "path": "docs/adr/20200925-multi-packages-architecture-in-a-monorepo-with-yarn-and-lerna.md",
+            "title": "Multi-packages architecture in a monorepo with Yarn and Lerna",
+            "date": "2020-09-25",
+            "excerpt": "- Status: accepted - Date: 2020-09-25 ## Context and Problem Statement We have to define the initial overall architecture of the project. For now, we are sure that we want to provide these features: - Local preview web UI - Static Site Generation from the CI/CD - CLI to create a new ADR quickly In the future, we might want to provide these features: - Create/edit ADRs from the local web UI - VSCode extension to create and maybe edit an ADR from the IDE - Support ADR aggregation from multiple repositories ## Considered Options - Monolith - Multi-packages, multirepo - Multi-packages, monorepo - with NPM and scripts for links and publication - with Yarn and scripts for publication - with Yarn a"
+          },
+          "reconstructed": {
+            "id": "7b9abae429",
+            "kind": "initial_stack",
+            "status": "Reconstructed (inferred)",
+            "date": "2020-09-25T16:34:23+00:00",
+            "decision_point": {
+              "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+              "short": "03550dc",
+              "detected": "Initial technology stack: chai (testing), jest (testing), joi (validation / schemas), next (web framework), nodemon (server / runtime), react (frontend framework)",
+              "commit_message": "feat: initial features"
+            },
+            "commits_considered": 1,
+            "affected_modules": [
+              "e2e-tests/e2e-launcher.js",
+              "packages/cli/src/cli.ts",
+              "packages/cli/src/commands/ListCommand.ts",
+              "packages/cli/src/commands/NewCommand.ts",
+              "packages/core/src/infrastructure/config/schema.ts",
+              "packages/global-cli/src/cli.ts",
+              "packages/global-cli/src/index.ts",
+              "packages/init/integration-tests/fake-entrypoint.ts",
+              "packages/init/src/cli.ts",
+              "packages/init/src/commands/InitCommand.ts",
+              "packages/web/cli/cli.ts",
+              "packages/web/cli/commands/build.ts",
+              "packages/web/cli/commands/preview.ts",
+              "packages/web/cli/utils.ts",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.stories.tsx",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.stories.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.tsx",
+              "packages/web/nextjs/src/components/Markdown/components/AdrLink/AdrLink.tsx",
+              "packages/web/nextjs/src/components/MarkdownHeading/MarkdownHeading.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.stories.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.test.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.stories.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.tsx",
+              "packages/web/nextjs/src/components/SearchBox/components/SearchBar/SearchBar.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.stories.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.tsx",
+              "packages/web/nextjs/src/contexts/AdrNavContext/AdrNavContext.ts",
+              "packages/web/nextjs/src/contexts/Log4brainsModeContext/Log4brainsModeContext.ts",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.stories.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/ConnectedAdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/AdrMenu/AdrMenu.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/ConnectedSearchBox/ConnectedSearchBox.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/RoutingProgress/RoutingProgress.tsx",
+              "packages/web/nextjs/src/lib-shared/search/Search.ts",
+              "packages/web/nextjs/src/lib-shared/types.ts",
+              "packages/web/nextjs/src/lib/core-api/instance.ts",
+              "packages/web/nextjs/src/lib/next.ts",
+              "packages/web/nextjs/src/lib/search/instance.ts",
+              "packages/web/nextjs/src/mui/MuiDecorator.tsx",
+              "packages/web/nextjs/src/pages/_app.tsx",
+              "packages/web/nextjs/src/pages/_document.tsx",
+              "packages/web/nextjs/src/pages/adr/[...slug].tsx",
+              "packages/web/nextjs/src/pages/api/adr.ts",
+              "packages/web/nextjs/src/pages/api/adr/[...slugAndMore].ts",
+              "packages/web/nextjs/src/pages/api/search-index.ts",
+              "packages/web/nextjs/src/pages/index.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.test.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
+            ],
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
+            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
+            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "alternatives": "",
+            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "evidence": [
+              {
+                "short": "03550dc",
+                "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+                "date": "2020-09-25T16:34:23+00:00",
+                "author": "Thomas Vaillant",
+                "message": "feat: initial features",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+              }
+            ],
+            "confidence": 0.3,
+            "confidence_label": "Low",
+            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.3,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        },
+        {
+          "real": {
+            "path": "docs/adr/20200925-use-prettier-eslint-airbnb-for-the-code-style.md",
+            "title": "Use Prettier-ESLint Airbnb for the code style",
+            "date": "2020-09-25",
+            "excerpt": "- Status: accepted - Date: 2020-09-25 ## Context and Problem Statement We have to choose our lint and format tools, and the code style to enforce as well. ## Considered Options - Prettier only - ESLint only - ESLint with Airbnb code style - ESLint with StandardJS code style - ESLint with Google code style - Prettier-ESLint with Airbnb code style - Prettier-ESLint with StandardJS code style - Prettier-ESLint with Google code style ## Decision Outcome Chosen option: \"Prettier-ESLint with Airbnb code style\", because - Airbnb code style is widely used (see [npm trends](https://www.npmtrends.com/eslint-config-airbnb-vs-eslint-config-google-vs-standard-vs-eslint-config-standard)) - Prettier-ESLint"
+          },
+          "reconstructed": {
+            "id": "7b9abae429",
+            "kind": "initial_stack",
+            "status": "Reconstructed (inferred)",
+            "date": "2020-09-25T16:34:23+00:00",
+            "decision_point": {
+              "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+              "short": "03550dc",
+              "detected": "Initial technology stack: chai (testing), jest (testing), joi (validation / schemas), next (web framework), nodemon (server / runtime), react (frontend framework)",
+              "commit_message": "feat: initial features"
+            },
+            "commits_considered": 1,
+            "affected_modules": [
+              "e2e-tests/e2e-launcher.js",
+              "packages/cli/src/cli.ts",
+              "packages/cli/src/commands/ListCommand.ts",
+              "packages/cli/src/commands/NewCommand.ts",
+              "packages/core/src/infrastructure/config/schema.ts",
+              "packages/global-cli/src/cli.ts",
+              "packages/global-cli/src/index.ts",
+              "packages/init/integration-tests/fake-entrypoint.ts",
+              "packages/init/src/cli.ts",
+              "packages/init/src/commands/InitCommand.ts",
+              "packages/web/cli/cli.ts",
+              "packages/web/cli/commands/build.ts",
+              "packages/web/cli/commands/preview.ts",
+              "packages/web/cli/utils.ts",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.stories.tsx",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.stories.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.tsx",
+              "packages/web/nextjs/src/components/Markdown/components/AdrLink/AdrLink.tsx",
+              "packages/web/nextjs/src/components/MarkdownHeading/MarkdownHeading.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.stories.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.test.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.stories.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.tsx",
+              "packages/web/nextjs/src/components/SearchBox/components/SearchBar/SearchBar.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.stories.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.tsx",
+              "packages/web/nextjs/src/contexts/AdrNavContext/AdrNavContext.ts",
+              "packages/web/nextjs/src/contexts/Log4brainsModeContext/Log4brainsModeContext.ts",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.stories.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/ConnectedAdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/AdrMenu/AdrMenu.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/ConnectedSearchBox/ConnectedSearchBox.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/RoutingProgress/RoutingProgress.tsx",
+              "packages/web/nextjs/src/lib-shared/search/Search.ts",
+              "packages/web/nextjs/src/lib-shared/types.ts",
+              "packages/web/nextjs/src/lib/core-api/instance.ts",
+              "packages/web/nextjs/src/lib/next.ts",
+              "packages/web/nextjs/src/lib/search/instance.ts",
+              "packages/web/nextjs/src/mui/MuiDecorator.tsx",
+              "packages/web/nextjs/src/pages/_app.tsx",
+              "packages/web/nextjs/src/pages/_document.tsx",
+              "packages/web/nextjs/src/pages/adr/[...slug].tsx",
+              "packages/web/nextjs/src/pages/api/adr.ts",
+              "packages/web/nextjs/src/pages/api/adr/[...slugAndMore].ts",
+              "packages/web/nextjs/src/pages/api/search-index.ts",
+              "packages/web/nextjs/src/pages/index.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.test.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
+            ],
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
+            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
+            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "alternatives": "",
+            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "evidence": [
+              {
+                "short": "03550dc",
+                "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+                "date": "2020-09-25T16:34:23+00:00",
+                "author": "Thomas Vaillant",
+                "message": "feat: initial features",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+              }
+            ],
+            "confidence": 0.3,
+            "confidence_label": "Low",
+            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.3,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        },
+        {
+          "real": {
+            "path": "packages/web/docs/adr/20200925-use-nextjs-for-static-site-generation.md",
+            "title": "Use Next.js for Static Site Generation",
+            "date": "2020-09-25",
+            "excerpt": "- Status: accepted - Date: 2020-09-25 - Tags: frontend, frameworks ## Context and Problem Statement Log4brains has two main features: - `edit mode` which lets the developer edit the ADRs from a web UI, which is served locally by running `npm run log4brains` - The developer is also able to edit the markdown files directly from the IDE, which triggers a live-reload of the web UI - `build mode` which generates a static site ready to deploy on a Github-pages-like service, so that the ADRs are easily browsable. Usually run by the CI with `npm run log4brains-build` We need to find the best way to develop these two modes. ## Decision Drivers <!-- optional --> - Maximize code reusability between the"
+          },
+          "reconstructed": {
+            "id": "7b9abae429",
+            "kind": "initial_stack",
+            "status": "Reconstructed (inferred)",
+            "date": "2020-09-25T16:34:23+00:00",
+            "decision_point": {
+              "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+              "short": "03550dc",
+              "detected": "Initial technology stack: chai (testing), jest (testing), joi (validation / schemas), next (web framework), nodemon (server / runtime), react (frontend framework)",
+              "commit_message": "feat: initial features"
+            },
+            "commits_considered": 1,
+            "affected_modules": [
+              "e2e-tests/e2e-launcher.js",
+              "packages/cli/src/cli.ts",
+              "packages/cli/src/commands/ListCommand.ts",
+              "packages/cli/src/commands/NewCommand.ts",
+              "packages/core/src/infrastructure/config/schema.ts",
+              "packages/global-cli/src/cli.ts",
+              "packages/global-cli/src/index.ts",
+              "packages/init/integration-tests/fake-entrypoint.ts",
+              "packages/init/src/cli.ts",
+              "packages/init/src/commands/InitCommand.ts",
+              "packages/web/cli/cli.ts",
+              "packages/web/cli/commands/build.ts",
+              "packages/web/cli/commands/preview.ts",
+              "packages/web/cli/utils.ts",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.stories.tsx",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.stories.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.tsx",
+              "packages/web/nextjs/src/components/Markdown/components/AdrLink/AdrLink.tsx",
+              "packages/web/nextjs/src/components/MarkdownHeading/MarkdownHeading.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.stories.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.test.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.stories.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.tsx",
+              "packages/web/nextjs/src/components/SearchBox/components/SearchBar/SearchBar.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.stories.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.tsx",
+              "packages/web/nextjs/src/contexts/AdrNavContext/AdrNavContext.ts",
+              "packages/web/nextjs/src/contexts/Log4brainsModeContext/Log4brainsModeContext.ts",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.stories.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/ConnectedAdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/AdrMenu/AdrMenu.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/ConnectedSearchBox/ConnectedSearchBox.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/RoutingProgress/RoutingProgress.tsx",
+              "packages/web/nextjs/src/lib-shared/search/Search.ts",
+              "packages/web/nextjs/src/lib-shared/types.ts",
+              "packages/web/nextjs/src/lib/core-api/instance.ts",
+              "packages/web/nextjs/src/lib/next.ts",
+              "packages/web/nextjs/src/lib/search/instance.ts",
+              "packages/web/nextjs/src/mui/MuiDecorator.tsx",
+              "packages/web/nextjs/src/pages/_app.tsx",
+              "packages/web/nextjs/src/pages/_document.tsx",
+              "packages/web/nextjs/src/pages/adr/[...slug].tsx",
+              "packages/web/nextjs/src/pages/api/adr.ts",
+              "packages/web/nextjs/src/pages/api/adr/[...slugAndMore].ts",
+              "packages/web/nextjs/src/pages/api/search-index.ts",
+              "packages/web/nextjs/src/pages/index.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.test.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
+            ],
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
+            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
+            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "alternatives": "",
+            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "evidence": [
+              {
+                "short": "03550dc",
+                "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+                "date": "2020-09-25T16:34:23+00:00",
+                "author": "Thomas Vaillant",
+                "message": "feat: initial features",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+              }
+            ],
+            "confidence": 0.3,
+            "confidence_label": "Low",
+            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.3,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        },
+        {
+          "real": {
+            "path": "packages/web/docs/adr/20200926-react-file-structure-organized-by-feature.md",
+            "title": "React file structure organized by feature",
+            "date": "2020-09-26",
+            "excerpt": "- Status: accepted - Date: 2020-09-26 ## Decision We will follow the structure described in this article: [How to better organize your React applications?](https://medium.com/@alexmngn/how-to-better-organize-your-react-applications-2fd3ea1920f1) by Alexis Mangin."
+          },
+          "reconstructed": {
+            "id": "7b9abae429",
+            "kind": "initial_stack",
+            "status": "Reconstructed (inferred)",
+            "date": "2020-09-25T16:34:23+00:00",
+            "decision_point": {
+              "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+              "short": "03550dc",
+              "detected": "Initial technology stack: chai (testing), jest (testing), joi (validation / schemas), next (web framework), nodemon (server / runtime), react (frontend framework)",
+              "commit_message": "feat: initial features"
+            },
+            "commits_considered": 1,
+            "affected_modules": [
+              "e2e-tests/e2e-launcher.js",
+              "packages/cli/src/cli.ts",
+              "packages/cli/src/commands/ListCommand.ts",
+              "packages/cli/src/commands/NewCommand.ts",
+              "packages/core/src/infrastructure/config/schema.ts",
+              "packages/global-cli/src/cli.ts",
+              "packages/global-cli/src/index.ts",
+              "packages/init/integration-tests/fake-entrypoint.ts",
+              "packages/init/src/cli.ts",
+              "packages/init/src/commands/InitCommand.ts",
+              "packages/web/cli/cli.ts",
+              "packages/web/cli/commands/build.ts",
+              "packages/web/cli/commands/preview.ts",
+              "packages/web/cli/utils.ts",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.stories.tsx",
+              "packages/web/nextjs/src/components/AdrStatusChip/AdrStatusChip.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.stories.tsx",
+              "packages/web/nextjs/src/components/Markdown/Markdown.tsx",
+              "packages/web/nextjs/src/components/Markdown/components/AdrLink/AdrLink.tsx",
+              "packages/web/nextjs/src/components/MarkdownHeading/MarkdownHeading.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.stories.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.test.tsx",
+              "packages/web/nextjs/src/components/MarkdownToc/MarkdownToc.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.stories.tsx",
+              "packages/web/nextjs/src/components/SearchBox/SearchBox.tsx",
+              "packages/web/nextjs/src/components/SearchBox/components/SearchBar/SearchBar.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.stories.tsx",
+              "packages/web/nextjs/src/components/TwoColContent/TwoColContent.tsx",
+              "packages/web/nextjs/src/contexts/AdrNavContext/AdrNavContext.ts",
+              "packages/web/nextjs/src/contexts/Log4brainsModeContext/Log4brainsModeContext.ts",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.stories.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/AdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/ConnectedAdrBrowserLayout.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/AdrMenu/AdrMenu.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/ConnectedSearchBox/ConnectedSearchBox.tsx",
+              "packages/web/nextjs/src/layouts/AdrBrowserLayout/components/RoutingProgress/RoutingProgress.tsx",
+              "packages/web/nextjs/src/lib-shared/search/Search.ts",
+              "packages/web/nextjs/src/lib-shared/types.ts",
+              "packages/web/nextjs/src/lib/core-api/instance.ts",
+              "packages/web/nextjs/src/lib/next.ts",
+              "packages/web/nextjs/src/lib/search/instance.ts",
+              "packages/web/nextjs/src/mui/MuiDecorator.tsx",
+              "packages/web/nextjs/src/pages/_app.tsx",
+              "packages/web/nextjs/src/pages/_document.tsx",
+              "packages/web/nextjs/src/pages/adr/[...slug].tsx",
+              "packages/web/nextjs/src/pages/api/adr.ts",
+              "packages/web/nextjs/src/pages/api/adr/[...slugAndMore].ts",
+              "packages/web/nextjs/src/pages/api/search-index.ts",
+              "packages/web/nextjs/src/pages/index.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/AdrScene.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.test.tsx",
+              "packages/web/nextjs/src/scenes/AdrScene/components/AdrHeader/AdrHeader.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
+              "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
+            ],
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
+            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
+            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "alternatives": "",
+            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "evidence": [
+              {
+                "short": "03550dc",
+                "sha": "03550dc4435c7668d36b50ca5ae420fab94e4936",
+                "date": "2020-09-25T16:34:23+00:00",
+                "author": "Thomas Vaillant",
+                "message": "feat: initial features",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+              }
+            ],
+            "confidence": 0.3,
+            "confidence_label": "Low",
+            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.3,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        }
+      ]
     },
     {
       "repo": "https://github.com/mrwilson/adr-viewer",
@@ -312,7 +879,98 @@
           "mean_evidence": 5.0,
           "mean_jaccard_vs_default": 0.6
         }
-      }
+      },
+      "reconstructions": [
+        {
+          "real": {
+            "path": "doc/adr/0002-expose-command-line-interface.md",
+            "title": "Expose command line interface",
+            "date": "2018-09-02",
+            "excerpt": "Date: 2018-09-02 ## Status Accepted ## Context We want to maximise the usability of adr-viewer whilst maintaining flexibility in future for other output formats, e.g. a live webserver. ## Decision The entry point for this project will be a command-line utility called `adr-viewer`. We will use the python [click](http://click.pocoo.org/5/) library to provide command-line options and documentation. ## Consequences Click will be added as a dependency, and further improvements should consider the user experience of the command-line interface."
+          },
+          "reconstructed": {
+            "id": "a73e09e70b",
+            "kind": "dependency_change",
+            "status": "Reconstructed (inferred)",
+            "date": "2018-09-02T14:56:31+00:00",
+            "decision_point": {
+              "sha": "3e9e2408d828611258b8a65865a0c9c32635221b",
+              "short": "3e9e240",
+              "detected": "Adopt click",
+              "commit_message": "feat(cli): Set up cli interface"
+            },
+            "commits_considered": 31,
+            "affected_modules": [
+              "adr_viewer/__init__.py"
+            ],
+            "title": "Adopt click for CLI interface",
+            "context": "The project needed a command\u2011line interface to generate HTML from ADR files. The developers wanted sensible defaults for the ADR directory and output file, and automatic help text. The existing code did not have a CLI framework, and the repository\u2019s requirements were empty before this change.",
+            "decision": "Add the `click` library as a dependency and refactor the entry point to use click\u2019s command and option decorators.",
+            "consequences": "The `requirements.txt` and `setup.py` now list `click` as a required package. The `main` function is now a click command with `--adr-path` and `--output` options, and the help output shows default values (as later documented). Future code that invokes the CLI will rely on click, tying the project to that library. No other CLI framework appears in the history, so click becomes the de\u2011facto standard for this project.",
+            "alternatives": "",
+            "inference": "The decision appears to be driven by the need for a lightweight, declarative CLI that provides built\u2011in help and default handling, which `click` offers. The commit message explicitly mentions using click for the CLI, and the subsequent docs commit leverages click\u2019s help output, suggesting the developers chose click to simplify CLI development and improve user experience.",
+            "evidence": [
+              {
+                "short": "3e9e240",
+                "sha": "3e9e2408d828611258b8a65865a0c9c32635221b",
+                "date": "2018-09-02T14:56:31+00:00",
+                "author": "Alex Wilson",
+                "message": "feat(cli): Set up cli interface",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds `click` to requirements and modifies `adr_viewer/__init__.py` to import click and define a click\u2011based CLI command with options."
+              },
+              {
+                "short": "8585b23",
+                "sha": "8585b23bac65efe4d92797201dcf4126a7efd504",
+                "date": "2018-09-02T15:04:47+00:00",
+                "author": "Alex Wilson",
+                "message": "docs(cli): Show parameter defaults when using --help",
+                "relevance": 0.786,
+                "factors": {
+                  "time": 0.909,
+                  "graph": 1.0,
+                  "text": 0.255
+                },
+                "decision_commit": false,
+                "shows": "Documentation commit that shows parameter defaults in `--help`, indicating click\u2019s automatic help generation is being used."
+              },
+              {
+                "short": "bb6411c",
+                "sha": "bb6411cd708d0d32a688a9af857058e8afa9cb77",
+                "date": "2018-09-02T15:55:55+00:00",
+                "author": "Alex Wilson",
+                "message": "feat(server): Add --serve to run as local HTTP server",
+                "relevance": 0.382,
+                "factors": {
+                  "time": 0.722,
+                  "graph": 0.333,
+                  "text": 0.062
+                },
+                "decision_commit": false,
+                "shows": "Adds a different dependency (Bottle) for a server feature, confirming the day\u2019s focus on adding external libraries."
+              }
+            ],
+            "confidence": 0.6,
+            "confidence_label": "Medium",
+            "confidence_reason": "The commit directly adds click and rewrites the entry point, and later documentation relies on click\u2019s features, providing strong evidence of the decision. (Capped at 0.6 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.92,
+              "cap": 0.6,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        }
+      ]
     },
     {
       "repo": "https://github.com/constructorfleet/mcp-plex",
@@ -363,7 +1021,7 @@
         },
         "time-heavy (0.6/0.2/0.2)": {
           "mean_evidence": 12.0,
-          "mean_jaccard_vs_default": 0.714
+          "mean_jaccard_vs_default": 0.6
         },
         "graph-heavy (0.15/0.7/0.15)": {
           "mean_evidence": 12.0,
@@ -375,9 +1033,118 @@
         },
         "equal (1/3 each)": {
           "mean_evidence": 12.0,
-          "mean_jaccard_vs_default": 0.846
+          "mean_jaccard_vs_default": 0.714
         }
-      }
+      },
+      "reconstructions": [
+        {
+          "real": {
+            "path": "docs/adr/0002-loader-pipeline-multi-worker.md",
+            "title": "Loader Multi-Worker Pipeline",
+            "date": "2025-10-05",
+            "excerpt": "## Status Accepted ## Context The Plex loader previously executed ingestion, enrichment, and Qdrant writes sequentially. Each phase waited for the previous phase to finish, so TMDb and IMDb lookups, embedding generation, and upsert requests could not overlap. Large libraries therefore spent most of their time idle while waiting on network latency, and any failure in a downstream phase required rerunning the entire load. Stakeholders asked for the \"loader multi worker rearchitecture plan\" to overlap these phases, provide better fault isolation, and expose concurrency controls. The new design must also integrate with existing logging, testing, and configuration patterns. ## Decision We introdu"
+          },
+          "reconstructed": {
+            "id": "d6445f05e5",
+            "kind": "dependency_change",
+            "status": "Reconstructed (inferred)",
+            "date": "2025-10-04T11:00:54+00:00",
+            "decision_point": {
+              "sha": "d2d3a9e036d2707f3100e4fc2868188d8211c553",
+              "short": "d2d3a9e",
+              "detected": "Adopt coverage",
+              "commit_message": "test: add coverage-focused server and loader tests (#72)"
+            },
+            "commits_considered": 80,
+            "affected_modules": [
+              "docker/pyproject.deps.toml",
+              "tests/test_loader_unit.py",
+              "tests/test_server.py",
+              "uv.lock"
+            ],
+            "title": "Adopt coverage for test measurement",
+            "context": "The project needed a way to measure test coverage for its Python code base. Existing test suites were expanding, and developers wanted a standard tool to enforce coverage thresholds. The repository uses pyproject.toml to declare development dependencies, so adding a new dev\u2011dependency would be the natural integration point.",
+            "decision": "The team added the `coverage[toml]` package to the development dependencies in both the root and Docker manifests.",
+            "consequences": "All subsequent commits continue to list `coverage[toml]` in the dependency manifests, indicating the dependency is now part of the baseline environment. Test files were expanded with additional imports (e.g., `io`, `sys`, `datetime`) that are typical for coverage\u2011related fixtures, suggesting the new tool is being exercised. The version bump to 1.0.0 later in the history reflects a stable release that now includes coverage support. A trade\u2011off is the added dependency size and the need for developers to run coverage commands as part of the CI pipeline.",
+            "alternatives": "",
+            "inference": "The decision to adopt coverage appears to be driven by a desire for measurable test quality as the code base grew. The commit message explicitly mentions adding coverage\u2011focused tests, and the manifest change introduces the package as a dev dependency, which is the standard way to integrate such tooling in Python projects. Subsequent commits retain the dependency, implying the team accepted the change and incorporated it into the CI workflow.",
+            "evidence": [
+              {
+                "short": "d2d3a9e",
+                "sha": "d2d3a9e036d2707f3100e4fc2868188d8211c553",
+                "date": "2025-10-04T11:00:54+00:00",
+                "author": "Teagan Glenn",
+                "message": "test: add coverage-focused server and loader tests (#72)",
+                "relevance": 1.0,
+                "factors": {
+                  "time": 1.0,
+                  "graph": 1.0,
+                  "text": 1.0
+                },
+                "decision_commit": true,
+                "shows": "Adds `coverage[toml]>=7.6.10` to the dev dependencies in pyproject.toml and docker/pyproject.deps.toml, and introduces new test imports."
+              },
+              {
+                "short": "afb6ccc",
+                "sha": "afb6ccc80c553459d9833e201fe461a57ad5ceff",
+                "date": "2025-10-04T11:42:01+00:00",
+                "author": "Teagan Glenn",
+                "message": "test: resolve pytest warnings (#76)",
+                "relevance": 0.565,
+                "factors": {
+                  "time": 0.833,
+                  "graph": 0.6,
+                  "text": 0.18
+                },
+                "decision_commit": false,
+                "shows": "Keeps `coverage[toml]` in the dependency manifests while fixing pytest warnings."
+              },
+              {
+                "short": "91e55f8",
+                "sha": "91e55f81b7169e74f981904515f0694e46fd7c23",
+                "date": "2025-10-04T18:24:34+00:00",
+                "author": "Teagan Glenn",
+                "message": "feat(loader): add qdrant upsert retry queue (#79)",
+                "relevance": 0.543,
+                "factors": {
+                  "time": 0.727,
+                  "graph": 0.583,
+                  "text": 0.248
+                },
+                "decision_commit": false,
+                "shows": "Continues to list `coverage[toml]` in the manifests as other features are added."
+              },
+              {
+                "short": "faed7eb",
+                "sha": "faed7eb984f0f19bccdcb6e0436002f2992681a8",
+                "date": "2025-10-06T06:07:45+00:00",
+                "author": "Teagan Glenn",
+                "message": "chore(release): bump version to 1.0.0 (#113)",
+                "relevance": 0.453,
+                "factors": {
+                  "time": 0.396,
+                  "graph": 0.667,
+                  "text": 0.136
+                },
+                "decision_commit": false,
+                "shows": "Releases version 1.0.0 after the coverage adoption, indicating the change is part of the released product."
+              }
+            ],
+            "confidence": 0.77,
+            "confidence_label": "High",
+            "confidence_reason": "The primary commit directly adds the dependency and test changes, and later commits consistently retain it, providing strong evidence of the decision. (Capped at 0.77 by evidence quality.)",
+            "validation": {
+              "attempts": 1,
+              "invalid_citations": [],
+              "unsupported_mentions": [],
+              "llm_confidence": 0.86,
+              "cap": 0.77,
+              "rationale_words_in_evidence": false
+            }
+          },
+          "warnings": []
+        }
+      ]
     }
   ]
 }

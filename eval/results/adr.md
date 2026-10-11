@@ -87,18 +87,20 @@ Evidence selected for the matched decision points under different α (time) / β
 | Weights | Mean evidence commits | Mean Jaccard vs default |
 |---|---|---|
 | default (0.3/0.45/0.25) | 12.0 | 1.0 |
-| time-heavy (0.6/0.2/0.2) | 12.0 | 0.714 |
+| time-heavy (0.6/0.2/0.2) | 12.0 | 0.6 |
 | graph-heavy (0.15/0.7/0.15) | 12.0 | 0.6 |
 | text-heavy (0.15/0.25/0.6) | 4.0 | 0.333 |
-| equal (1/3 each) | 12.0 | 0.846 |
+| equal (1/3 each) | 12.0 | 0.714 |
 
-## Reconstruction (LLM)
+## Reconstruction (LLM) — automatic checks
 
-_Not run in this report (use `--synthesize`)._
+7 matched decisions reconstructed. Validator retries needed: 0/7; records with unsupported mentions flagged: 0; fallbacks (no usable synthesis): 0. Cited commits outside the evidence remaining after validation: 0 by construction (they are removed or trigger a retry).
+
+Human scores (accuracy, completeness, hallucination) go in `adr_rubric.md`.
 
 ## Limits
 
 - Only decisions that leave a trace in code history are detectable (dependency, infrastructure, structure, rule changes). ADRs about process, documentation or UI conventions have no such trace.
 - Topic matching uses title words, so a correct detection described with different words counts as a miss.
 
-_Generated 2026-10-05 11:30 UTC by `eval/eval_adr.py`._
+_Generated 2026-10-11 17:41 UTC by `eval/eval_adr.py`._

@@ -24,6 +24,7 @@ Usage: python eval/eval_qa.py [--no-live | --no-llm] [repo_url_or_path ...]
 import argparse
 import json
 import os
+import posixpath
 import re
 import tempfile
 
@@ -152,8 +153,10 @@ def ground_truth(session, analysis: dict) -> list:
         qs.append({"intent": "rationale", "kind": "cites",
                    "question": f"Why was this decision made: {decisions[0]['subject']}?",
                    "expected": decisions[0]["short"], "subject": None})
+    functions = {r["n"] for r in run("MATCH (f:Function) RETURN DISTINCT f.name AS n")}
     for q in qs:
         q["modules"] = modules
+        q["functions"] = functions
     return qs
 
 
@@ -164,7 +167,26 @@ _HEX = re.compile(r"\b([0-9a-f]{7,12})\b")
 _NUM = re.compile(r"\d+(?:\.\d+)?")
 
 
-def mentioned_paths(answer: str, modules: set) -> set:
+# gpt-oss writes dates with non-breaking hyphens and names with narrow no-break spaces.
+_TYPOGRAPHIC = str.maketrans({" ": " ", " ": " ", " ": " ", " ": " ",
+                              "‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-", "−": "-"})
+_SOURCE_EXTS = (".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
+
+
+def plain(answer: str) -> str:
+    return (answer or "").translate(_TYPOGRAPHIC)
+
+
+def resolve_relative(token: str, subject: str, modules: set):
+    """A relative import specifier (`../../src/app`) as a repository path, if it is one."""
+    base = posixpath.normpath(posixpath.join(posixpath.dirname(subject or ""), token))
+    for candidate in (base, *(base + e for e in _SOURCE_EXTS), *(f"{base}/index{e}" for e in _SOURCE_EXTS)):
+        if candidate in modules:
+            return candidate
+    return None
+
+
+def mentioned_paths(answer: str, modules: set, subject: str = None) -> set:
     found = {m for m in modules if m in answer}
     basenames = {}
     for m in modules:
@@ -173,17 +195,26 @@ def mentioned_paths(answer: str, modules: set) -> set:
         token = token.split(":")[0].strip()
         if token in basenames and len(basenames[token]) == 1:
             found.add(basenames[token][0])
+        elif subject and token.startswith(("./", "../")):
+            resolved = resolve_relative(token, subject, modules)
+            if resolved:
+                found.add(resolved)
     return found
 
 
 def score(q: dict, answer: str) -> dict:
+    answer = plain(answer)
     lower = answer.lower()
     if q["kind"] in ("set", "names"):
         if q["kind"] == "set":
-            got = mentioned_paths(answer, q["modules"]) - {q["subject"]}
+            got = mentioned_paths(answer, q["modules"], q["subject"]) - {q["subject"]}
         else:
-            got = {n for n in q["expected"] | set(re.findall(r"\b[A-Za-z_]\w+\b", answer)) if re.search(rf"\b{re.escape(n)}\b", answer)}
-            got &= q["expected"] | {n for n in re.findall(r"`([A-Za-z_]\w*)`", answer)}
+            # Expected callers named anywhere, plus any other repository function named in backticks
+            # (a wrong caller); not tool fields like `called_by`, nor the function asked about.
+            got = {n for n in q["expected"] if re.search(rf"\b{re.escape(n)}\b", answer)}
+            got |= {n for n in re.findall(r"`([A-Za-z_]\w*)`", answer) if n in q.get("functions", ())}
+            if q["subject"] not in q["expected"]:
+                got.discard(q["subject"])
         expected = q["expected"]
         tp = len(got & expected)
         precision = tp / len(got) if got else (1.0 if not expected else 0.0)
@@ -208,7 +239,8 @@ def score(q: dict, answer: str) -> dict:
 
 
 def citation_validity(answer: str, tool_text: str, modules: set, commits: set, functions: set) -> dict:
-    tokens = set(_BACKTICK.findall(answer)) | set(_HEX.findall(answer.lower()))
+    answer = plain(answer)
+    tokens =set(_BACKTICK.findall(answer)) | set(_HEX.findall(answer.lower()))
     checked, valid = 0, 0
     for token in tokens:
         token = token.strip()
@@ -410,7 +442,11 @@ def main():
         md += ["## C. Live answers with graph and git ground truth", "",
                "Questions are generated per repository from templates; the expected answers come from Cypher queries "
                "on the graph and from the mined history, not from the model. Citations count as valid only if the cited "
-               "file, function or commit exists and appears in that answer's own tool results.", "",
+               "file, function or commit exists and appears in that answer's own tool results. Answers are compared "
+               "after replacing typographic spaces and hyphens (gpt-oss writes `2021‑11‑04` with non-breaking "
+               "hyphens and names with narrow no-break spaces); relative import paths (`../../src/app`) are resolved "
+               "against the file asked about; for callers, only names of functions in the repository count, never "
+               "the function asked about itself.", "",
                table(["Intent", "Questions", "Correct", "Routed correctly", "Valid citations"],
                      [[i, b["n"], pct(b["correct"], b["n"]), pct(b["routed"], b["n"]), pct(b["valid"], b["checked"])]
                       for i, b in sorted(by_intent.items())]

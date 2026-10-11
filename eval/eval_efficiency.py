@@ -85,8 +85,10 @@ def main():
            "changing regenerates. A partial result (some sections hit the rate limit and fell back) is never cached, "
            "so a warm repeat after a partial cold run regenerates it once — that is the only case where warm calls "
            "are non-zero.", "",
-           "Wall-clock time for cold generative features depends mostly on the provider's rate limit (Groq's free "
-           "tier allows about 8,000 tokens per minute per key), not on RepoMind's own processing."]
+           "Wall-clock time for cold generative features is almost all waiting for the model"
+           + (" and its rate limit (Groq's free tier allows about 8,000 tokens per minute per key)"
+              if llm.describe("docs")["provider"] == "groq" else "")
+           + ", not RepoMind's own processing."]
     print(write_report("efficiency", "\n".join(md), {"results": results}))
 
 

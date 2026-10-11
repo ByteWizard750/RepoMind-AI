@@ -92,8 +92,9 @@ violations → drift scoring)           scoring → correlation)
               FastAPI Backend → React Dashboard (reports + chat panel)
 ```
 
-> **Note:** This is the full target architecture. See "Implementation
-> Scope" sections below for what is actually being built, phase by phase.
+> **Note:** This is the full target architecture. What was actually built,
+> and where it differs, is summarized in section 14; the "Implementation
+> Scope" sections below record each phase in detail.
 
 ## 5. The Knowledge Graph — the shared foundation (Target)
 
@@ -109,8 +110,10 @@ capabilities (Drift Detection, ADR Reconstruction, Q&A) read from
 this one graph, so no capability ever reasons from a disconnected
 model of the codebase.
 
-> **Phased note:** temporal versioning is deferred — see
-> Implementation Scope sections below for the phased schema.
+> **As built:** Phase 1 stored current-state edges only; the Completion
+> phase added the temporal history graph — import intervals between
+> sampled history snapshots (`valid_from_idx`/`valid_to_idx`), snapshot
+> health, commits, developers and decisions. See section 14.
 
 ## 6. Flagship Module 1 — Architecture Drift Detection (Target)
 
@@ -221,14 +224,14 @@ demonstrated caching/concurrency need arises.)*
 
 ## 11. Five Major Modules (Target System Design)
 
-1. **Ingestion & Parsing** — Tree-sitter, static analysis. **[Phase 1 — DONE]**
-2. **Software Knowledge Graph** — Neo4j, temporal versioning. **[Phase 1 — DONE, current-state only]**
+1. **Ingestion & Parsing** — Tree-sitter, static analysis. **[DONE — Python, JavaScript, TypeScript]**
+2. **Software Knowledge Graph** — Neo4j, temporal versioning. **[DONE — current state plus the temporal history graph]**
 3. **Architecture Analysis Engine** — deterministic rules,
-   violations, drift scoring. *(Priority)* **[Phase 2 — DONE]**
+   violations, drift scoring. *(Priority)* **[DONE — including the drift curve over history]**
 4. **Historical Intelligence Engine** — Git/PR mining, evidence
-   correlation, ADR synthesis. *(Priority)* **[Phase 3 — DONE (Git mining slice); evidence correlation and ADR synthesis not started]**
+   correlation, ADR synthesis. *(Priority)* **[DONE — Git mining, relevance scoring, ADR synthesis; PR mining not built]**
 5. **AI Reasoning & Delivery** — LangGraph orchestration (drift,
-   ADR, and Q&A agents), API, dashboard with chat panel. **[Diagram export (Phase 4) in progress; everything else not started]**
+   ADR, and Q&A agents), API, dashboard with chat panel. **[DONE — plain HTML/JS dashboard instead of React]**
 
 ## 12. Evaluation Methodology (Target)
 
@@ -257,6 +260,31 @@ demonstrated caching/concurrency need arises.)*
   repositories, not just a qualitative demo.
 - A documented, extensible architecture-rule system (rules as data)
   so new patterns can be added without touching core logic.
+
+## 14. Current Status (as built, October 2026)
+
+Every capability and deliverable in sections 4–13 is built and evaluated
+(`eval/results/`; summary in `README.md`). Where the build differs from
+the target, it was a deliberate choice:
+
+| Target | As built | Why |
+|---|---|---|
+| React + TypeScript dashboard, React Flow, Monaco | One plain HTML/JS page (`static/index.html`): result tabs, Mermaid diagrams with zoom and full screen, an SVG drift chart with time travel, ADR cards, chat panel | No build step or framework to maintain; everything the dashboard was meant to show is there |
+| PostgreSQL for commits, PRs and reports | Neo4j holds the code graph and the history graph; generated results are cached in files (`cache.py`) | One graph store was enough; the cache only needs key → result |
+| LangGraph + LangChain | LangGraph; nodes are plain Python calling `llm.py`, no LangChain model wrappers | One shared LLM layer handles providers, key rotation, deadlines and retries |
+| GPT-4o / Gemini Pro | `gpt-oss-120b` on Amazon Bedrock (default) or Groq, through `llm.py` | Availability and cost; the provider is a setting |
+| PyDriller + GitHub REST API | One streamed `git log` inside every analysis (`mine_history.py` keeps the PyDriller CLI); the GitHub API is used for the pre-clone check and for issues | About 10× faster than PyDriller's per-commit diffs on Windows |
+| Versioned edges per commit (`valid_from_commit`/`valid_to_commit`) | Import intervals between up to 20 evenly spaced history snapshots | Parsing every commit is too slow for real histories; snapshots are enough for the drift curve and time travel |
+| `PullRequest` nodes, PR text as ADR evidence | Not built: ADR evidence is commits and their diffs | Left out of scope in the Completion phase |
+| Full vs. incremental analysis | Results cached per repository, commit, rules, prompt version and model — re-analysis makes zero LLM calls; parsing itself is not incremental | Deterministic analysis already takes seconds |
+| Java | Not supported (Python, JavaScript, TypeScript) | Out of scope from Phase 6 |
+
+Built beyond the original target: a **code review agent** that reviews
+recent commits and raises GitHub issues (also as a GitHub Action), handling
+of **large and unsupported repositories** (pre-clone check, clone time
+limit, large-repo mode, folder URLs, progress and cancel), and two scripted
+**demo repositories** (`demo/`). Each has its own Implementation Scope
+section at the end of this document.
 
 ---
 
@@ -801,7 +829,7 @@ classes, 15 functions, 23 nodes) every time.
 
 ---
 
-## Implementation Scope — Phase 7 (Minimal Web Interface for Demo)
+## Implementation Scope — Phase 7 (Minimal Web Interface for Demo) — COMPLETE
 
 **Phases 1-4, 5a, 5b, and 6 are complete and verified.** This phase is
 a thin UI wrapper — it exposes existing, already-verified logic through
@@ -897,7 +925,8 @@ documentation) against a real analyzed repo.
 
 ## Implementation Scope — Phase 8 (LLM-Generated Documentation, via Groq)
 
-**Status: in progress.** Adds this project's first-ever generative
+**Status: DONE** (extended by Phase 8b; the provider later moved behind
+`llm.py`, see Completion). Adds this project's first-ever generative
 component — everything before this phase (Phases 1-7) was purely
 deterministic (parsing, graph queries, rule checks, diagram formatting).
 
@@ -1342,7 +1371,7 @@ with the scope decisions listed here. `README.md` is the user-facing guide.
 3. **Temporal graph** (`history.py`, `snapshots.py`,
    `graph/history_loader.py`): full clone kept as the analysis workspace;
    one streamed `git log` for commits (bulk, renames, binary handled);
-   up to 12 snapshots at evenly spaced code-changing first-parent commits,
+   up to 12 snapshots (later 20) at evenly spaced code-changing first-parent commits,
    materialized from git objects without touching the workspace;
    `(:HModule)-[:H_IMPORTS {valid_from_idx, valid_to_idx}]` intervals,
    `(:Snapshot)` health/diff nodes, `(:Developer)-[:AUTHORED]->(:Commit)
@@ -1420,6 +1449,23 @@ with the scope decisions listed here. `README.md` is the user-facing guide.
   `python eval/eval_qa.py`, `python eval/eval_adr.py --synthesize` and
   `python eval/eval_efficiency.py` once Bedrock (or fresh Groq budget) is
   available.
+  **Done on Bedrock (2026-10-11):** all three re-run. Efficiency: 9–11 s
+  deterministic analysis (snapshots down from 5–6 s to 0.5–1.5 s after
+  in-memory parsing; the clone is now the largest stage), 16–30 s for the
+  cold AI sections (Groq's rate limit had made documentation alone take
+  150 s), and zero LLM calls on warm repeats. ADR synthesis: 7 matched
+  decisions reconstructed with no validator retries, flagged mentions or
+  fallbacks; the human scores go in `eval/results/adr_rubric.md`.
+  Live Q&A: the first run scored 22/30, but git showed 7 of the 8 misses
+  were scorer errors — gpt-oss writes names with narrow no-break spaces and
+  dates with non-breaking hyphens, answers gave imports as relative paths
+  (`../../src/app`), and the function asked about (and tool fields such as
+  `called_by`) were counted as wrong callers. The eighth was a real bug: a
+  long reply of untagged reasoning ending in "Provide answer." followed by
+  the answer slipped past the planning guard, which only caught short
+  replies. `strip_leaked_reasoning` now keeps just the answer, and a reply
+  of any length that opens with a plan and talks about tools is asked
+  again. Re-run with both fixes: 30/30 correct, 128/129 citations valid.
 
 ## Implementation Scope — Dependency resolution beyond direct names
 

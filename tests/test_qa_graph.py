@@ -147,6 +147,30 @@ def test_looks_like_plan(text, plan):
     assert qa_graph.looks_like_plan(text) is plan
 
 
+_LONG_REASONING = ("We need to call search_source_text again with broader query maybe \"ArticlesRepository(\" "
+                   "already done; it returned only those matches. " + "So the function is test_article. " * 40)
+
+
+def test_long_reasoning_that_opens_with_a_plan_is_a_plan():
+    assert len(_LONG_REASONING) > 800 and qa_graph.looks_like_plan(_LONG_REASONING)
+    long_answer = "Let's look at the routers first. " + "products.py imports the order repository directly. " * 30
+    assert not qa_graph.looks_like_plan(long_answer)
+
+
+def test_leaked_reasoning_before_the_answer_is_removed():
+    answer = "| File | Function |\n|---|---|\n| `tests/conftest.py` | `test_article` |\n\n**Confidence:** High"
+    assert qa_graph.strip_leaked_reasoning(_LONG_REASONING + "Provide answer." + answer) == answer
+    assert qa_graph.strip_leaked_reasoning(_LONG_REASONING + "\nNow write the final answer:\n" + answer) == answer
+    assert qa_graph.strip_leaked_reasoning(answer) == answer               # a normal answer is untouched
+    assert qa_graph.strip_leaked_reasoning(_LONG_REASONING) == _LONG_REASONING  # no answer to keep
+
+
+def test_leaked_reasoning_is_not_shown(monkeypatch):
+    answer, calls = _graph_with_answers(monkeypatch, [
+        _LONG_REASONING + "Provide answer.The `__init__` method is called by `test_article`. **Confidence:** High"])
+    assert answer.startswith("The `__init__` method") and len(calls) == 1
+
+
 def _graph_with_answers(monkeypatch, answers):
     replies = iter(answers)
     calls = []
