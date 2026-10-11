@@ -18,8 +18,10 @@ import llm
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.environ.get("REPOMIND_CACHE_DIR", os.path.join(ROOT, ".cache"))
-# Bump when a prompt or output format changes, so old entries stop matching.
-PROMPT_VERSION = "2"
+# Bump when a prompt or output format changes, or when the parser starts
+# producing different edges (the prompts are built from the graph), so old
+# entries stop matching.
+PROMPT_VERSION = "3"
 
 _lock = threading.Lock()
 _stats = {"hits": 0, "misses": 0}

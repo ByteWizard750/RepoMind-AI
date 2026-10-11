@@ -1,0 +1,67 @@
+# RepoMind code review on every push — copy this file into the repository you
+# want reviewed, as .github/workflows/repomind-review.yml.
+#
+# What it does: reviews the commits of each push (the architecture rules plus
+# an AI review of the changed lines) and opens GitHub issues for the findings,
+# labelled `repomind-review`. Findings already raised are never raised again,
+# issues you close stay closed, and RepoMind issues whose problem is gone get
+# closed automatically.
+#
+# Setup:
+#   1. Repository → Settings → Secrets and variables → Actions → add
+#      GROQ_API_KEYS (comma-separated Groq keys) or BEDROCK_API_KEY and
+#      BEDROCK_REGION. Without a key the review still reports architecture
+#      findings.
+#   2. Optional: a `rules.yaml` (RepoMind format) at the repository root to
+#      declare your own layers and rules; otherwise RepoMind's defaults apply.
+#   3. If the RepoMind repository is private, add a REPOMIND_CHECKOUT_TOKEN
+#      secret (a token that can read it) and uncomment the `token:` line.
+
+name: RepoMind review
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: repomind-review-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out RepoMind
+        uses: actions/checkout@v4
+        with:
+          repository: Sriram-Kommmana/repoMindAI
+          path: .repomind
+          # token: ${{ secrets.REPOMIND_CHECKOUT_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .repomind/requirements.txt
+
+      - name: Install RepoMind
+        run: pip install -r .repomind/requirements.txt
+
+      - name: Review the pushed commits and raise issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEYS: ${{ secrets.GROQ_API_KEYS }}
+          BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
+          BEDROCK_REGION: ${{ secrets.BEDROCK_REGION }}
+          REPOMIND_CACHE_DIR: ${{ runner.temp }}/repomind-cache
+        run: python .repomind/review_cli.py --repo-path . --base "${{ github.event.before }}" --raise

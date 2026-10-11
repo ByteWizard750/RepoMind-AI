@@ -3,7 +3,12 @@
 Part A (offline, no LLM): intent-routing accuracy on a hand-labelled set of
 questions phrased in different ways.
 
-Part B (live): for each repository, questions are generated from templates
+Part B (offline, no LLM): evidence check. For each template question below,
+the tool a correct agent would call is called directly, and its output must
+contain the ground truth. This isolates retrieval (graph queries, history,
+decision detection, result truncation) from the model's synthesis.
+
+Part C (live): for each repository, questions are generated from templates
 with ground truth taken directly from the graph and the git history, asked
 through /ask, and scored on:
   - correctness: list answers by entity precision/recall (correct when both
@@ -12,9 +17,12 @@ through /ask, and scored on:
     exist AND appear in that answer's own recorded tool results;
   - routing: whether the template's intent was among the routed intents.
 
-Usage: python eval/eval_qa.py [--no-live] [repo_url_or_path ...]
+Usage: python eval/eval_qa.py [--no-live | --no-llm] [repo_url_or_path ...]
+  --no-live  routing only (Part A)
+  --no-llm   routing and the evidence check (Parts A and B), no LLM calls
 """
 import argparse
+import json
 import os
 import re
 import tempfile
@@ -221,7 +229,61 @@ def citation_validity(answer: str, tool_text: str, modules: set, commits: set, f
     return {"checked": checked, "valid": valid}
 
 
-def run_live(client, target: str) -> dict:
+# ------------------------------------------------------------------ part B: evidence check
+
+def reference_call(q: dict):
+    """(tool, args) a correct agent would call for template question q."""
+    text = q["question"]
+    if text.startswith(("Which modules import", "Which modules does")):
+        return "get_module_details", {"path": q["subject"]}
+    if text.startswith("Which functions call"):
+        module = re.search(r"defined in `([^`]+)`", text).group(1)
+        return "get_function_details", {"name": q["subject"], "module_path": module}
+    if q["intent"] == "architectural":
+        return "get_architecture_health", {}
+    if text.startswith("Who has made the most commits"):
+        return "get_contributors", {}
+    if q["intent"] == "historical":
+        return "get_file_history", {"path": q["subject"]}
+    return "list_decisions", {}
+
+
+def evidence_contains(q: dict, tool_text: str) -> dict:
+    """Recall of the ground truth within one tool result."""
+    if q["kind"] in ("set", "names"):
+        expected = q["expected"]
+        found = {x for x in expected if (f'"{x}"' in tool_text if q["kind"] == "set" else re.search(rf"\b{re.escape(x)}\b", tool_text))}
+        recall = len(found) / len(expected) if expected else 1.0
+        return {"recall": round(recall, 3), "complete": recall == 1.0}
+    if q["kind"] == "none":
+        return {"complete": '"violations": []' in tool_text or '"violation_count": 0' in tool_text}
+    if q["kind"] == "number":
+        if q["expected"] is None:
+            return {"complete": '"health_score": null' in tool_text or "not scored" in tool_text.lower()}
+        values = {float(v) for v in re.findall(r":\s*(-?\d+(?:\.\d+)?)", tool_text)}
+        return {"complete": any(abs(v - float(q["expected"])) < 0.051 for v in values)}
+    ok = str(q["expected"]).lower() in tool_text.lower()
+    if q.get("also"):
+        ok = ok and q["also"].lower() in tool_text.lower()
+    return {"complete": ok}
+
+
+def run_evidence(questions: list) -> list:
+    sources = qa_engine.repo_snapshot()[1]
+    session = qa_engine.shared_driver().session()
+    rows = []
+    try:
+        for q in questions:
+            tool, args = reference_call(q)
+            text, _, summary = qa_engine._run_tool(session, sources, tool, json.dumps(args))
+            rows.append({"question": q["question"], "intent": q["intent"], "tool": tool, "args": args,
+                         "truncated": text.endswith("[truncated]"), **evidence_contains(q, text)})
+    finally:
+        session.close()
+    return rows
+
+
+def analyze_target(client, target: str):
     from agents.adr_graph import decisions_for
     import workspace
 
@@ -233,6 +295,18 @@ def run_live(client, target: str) -> dict:
     session = qa_engine.shared_driver().session()
     try:
         questions = ground_truth(session, analysis)
+    finally:
+        session.close()
+    return analysis, questions
+
+
+def run_live(client, target: str) -> dict:
+    analysis, questions = analyze_target(client, target)
+    evidence = run_evidence(questions)
+    if os.environ.get("REPOMIND_EVAL_NO_LLM"):
+        return {"target": target, "evidence": evidence, "results": []}
+    session = qa_engine.shared_driver().session()
+    try:
         commits = {r["s"] for r in session.run("MATCH (c:Commit) RETURN c.short AS s").data()}
         functions = {r["n"] for r in session.run("MATCH (f:Function) RETURN DISTINCT f.name AS n").data()}
     finally:
@@ -261,12 +335,13 @@ def run_live(client, target: str) -> dict:
                         "routed_ok": q["intent"] in answer["intents"], "tools": [e["tool"] for e in answer["evidence"]],
                         **s, **{f"citations_{k}": v for k, v in cites.items()}, "answer": answer["answer"]})
         print(f"  [{'OK ' if s['correct'] else 'BAD'}] {q['question']}")
-    return {"target": target, "results": results}
+    return {"target": target, "evidence": evidence, "results": results}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-live", action="store_true")
+    ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("targets", nargs="*")
     args = ap.parse_args()
 
@@ -279,6 +354,8 @@ def main():
         from fixtures.make_history_repo import make_history_repo
         import server
         os.environ["REPOMIND_ALLOW_LOCAL_REPOS"] = "1"
+        if args.no_llm:
+            os.environ["REPOMIND_EVAL_NO_LLM"] = "1"
         targets = args.targets or [make_history_repo(os.path.join(tempfile.mkdtemp(prefix="repomind_evalqa_"), "repo")),
                                    "https://github.com/hagopj13/node-express-boilerplate",
                                    "https://github.com/nsidnev/fastapi-realworld-example-app"]
@@ -296,8 +373,30 @@ def main():
     if routing["misses"]:
         md += ["Misrouted:", "", table(["Question", "Expected", "Routed"],
                                        [[m["question"], m["expected"], ", ".join(m["routed"])] for m in routing["misses"]]), ""]
+    evidence_all = [r for t in live for r in t.get("evidence", [])]
+    if evidence_all:
+        by_intent = {}
+        for r in evidence_all:
+            b = by_intent.setdefault(r["intent"], {"n": 0, "complete": 0})
+            b["n"] += 1
+            b["complete"] += r["complete"]
+        n_all = sum(b["n"] for b in by_intent.values())
+        c_all = sum(b["complete"] for b in by_intent.values())
+        md += ["## B. Evidence check (offline, no LLM)", "",
+               "For each template question of Part C, the tool a correct agent would call is called directly with the "
+               "right arguments, and its result must contain the full ground truth (every expected module or function, "
+               "the exact number, author, commit or date). This measures the retrieval layer the model depends on, "
+               "independent of the model.", "",
+               table(["Intent", "Questions", "Ground truth fully in evidence"],
+                     [[i, b["n"], f"{b['complete']}/{b['n']}"] for i, b in sorted(by_intent.items())]
+                     + [["**All**", n_all, f"{c_all}/{n_all}"]]), ""]
+        for t in live:
+            md += [f"### {t['target'] if t['target'].startswith('http') else 'scripted history fixture'}", "",
+                   table(["Question", "Tool", "Complete", "Recall", "Truncated"],
+                         [[r["question"], r["tool"], "yes" if r["complete"] else "no", r.get("recall", ""),
+                           "yes" if r["truncated"] else ""] for r in t["evidence"]]), ""]
     rows_all = [r for t in live for r in t["results"]]
-    if live:
+    if rows_all:
         by_intent = {}
         for r in rows_all:
             b = by_intent.setdefault(r["intent"], {"n": 0, "correct": 0, "routed": 0, "checked": 0, "valid": 0})
@@ -308,7 +407,7 @@ def main():
             b["valid"] += r.get("citations_valid", 0)
         total = {k: sum(b[k] for b in by_intent.values()) for k in ("n", "correct", "routed", "checked", "valid")}
         pct = lambda a, b: f"{a}/{b} ({round(100 * a / b)}%)" if b else "–"
-        md += ["## B. Live answers with graph and git ground truth", "",
+        md += ["## C. Live answers with graph and git ground truth", "",
                "Questions are generated per repository from templates; the expected answers come from Cypher queries "
                "on the graph and from the mined history, not from the model. Citations count as valid only if the cited "
                "file, function or commit exists and appears in that answer's own tool results.", "",
@@ -318,7 +417,7 @@ def main():
                      + [["**All**", total["n"], pct(total["correct"], total["n"]), pct(total["routed"], total["n"]),
                          pct(total["valid"], total["checked"])]]), ""]
         for t in live:
-            md += [f"### {t['target'] if t['target'].startswith('http') else 'scripted history fixture'}", "",
+            md += [f"### {t['target'] if t['target'].startswith('http') else 'scripted history fixture'} (live)", "",
                    table(["Question", "Intent", "Correct", "Precision", "Recall", "Citations valid"],
                          [[r["question"], r["intent"], "yes" if r.get("correct") else ("error" if r.get("error") else "no"),
                            r.get("precision", ""), r.get("recall", ""),

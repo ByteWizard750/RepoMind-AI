@@ -9,6 +9,7 @@ Paste a public GitHub URL and you get:
 - **Architecture decisions** — decision points detected in the history (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved) and a reconstructed ADR for each, split into evidence, inference and confidence.
 - **Documentation** — a grounded description of every module, generated map-reduce style.
 - **Ask the repo** — a chat that answers structural, architectural, historical and "why" questions by querying the graph, the history and the ADR engine, and lists the exact queries behind every answer.
+- **Code review → GitHub issues** — reviews the latest commits: rule violations they introduced (from the rule engine) and bugs, security and error-handling problems in the changed lines (from the AI, each one checked against the exact line it quotes). Findings become GitHub issues — with one click in the app, or automatically on every push with the included GitHub Action.
 
 ## How it works
 
@@ -27,6 +28,7 @@ Tree-sitter parsing (Python, JavaScript, TypeScript) ──► Neo4j: Module / C
    drift_graph:  load_rules → evaluate → prioritize → explain → assemble
    adr_graph:    gather → score → filter → synthesize → validate (↺ once) → finalize
    qa_graph:     route → agent ⇄ tools → synthesize → finalize
+   review_graph: collect → architecture → review (+validate) → rank → assemble ──► GitHub issues
 ```
 
 **Deterministic before generative.** Violations are Cypher query matches; priority is a formula (severity × callee fan-in × recency); decision points come from manifest diffs, folder appearance and renames. The LLM writes prose on top of those facts and is validated: an ADR may only cite commits from its evidence, file paths it names must appear in the evidence, and its confidence is capped by evidence quality.
@@ -63,7 +65,7 @@ python scripts/check_llm.py
 |---|---|
 | `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` | AuraDB connection details (console → instance → Connect) |
 | `LLM_PROVIDER` | `bedrock` or `groq`; defaults to Bedrock when `BEDROCK_API_KEY` is set |
-| `LLM_PROVIDER_<PURPOSE>` | Per-feature override: `DOCS`, `QA`, `DRIFT`, `ADR` |
+| `LLM_PROVIDER_<PURPOSE>` | Per-feature override: `DOCS`, `QA`, `DRIFT`, `ADR`, `REVIEW` |
 | `BEDROCK_API_KEY`, `BEDROCK_REGION`, `BEDROCK_MODEL` | Bedrock OpenAI-compatible endpoint (default model `openai.gpt-oss-120b-1:0`) |
 | `BEDROCK_MAX_CONCURRENCY` | Parallel Bedrock calls (default 4) |
 | `GROQ_API_KEYS` | Comma-separated Groq keys, one per account; calls rotate across them |
@@ -71,6 +73,9 @@ python scripts/check_llm.py
 | `HISTORY_SNAPSHOTS` | History snapshots (default 12; reduced automatically for large repositories) |
 | `CLONE_FILTER` | e.g. `blob:none` for very large repositories |
 | `REPOMIND_CACHE_DIR` | Where generated artifacts are cached (default `.cache/`) |
+| `GITHUB_TOKEN` | Fine-grained token (Issues: read/write) for raising review findings as issues |
+| `REVIEW_DEFAULT_COMMITS`, `REVIEW_MAX_FILES`, `REVIEW_MAX_BATCHES` | Review range and cost bounds (5 commits, 12 files, 8 model calls) |
+| `REVIEW_MAX_ISSUES`, `REVIEW_MIN_SEVERITY`, `REVIEW_CLOSE_RESOLVED` | Issue limits: per run (10), threshold (medium), auto-close resolved (on) |
 
 If Bedrock rejects tool calling, tool-using features switch to Groq automatically and say so.
 
@@ -99,6 +104,32 @@ rules:
 
 The defaults cover common layouts (controllers/routes/views, services/use cases, repositories/db/adapters, models/entities/domain, NestJS file suffixes). Models get a layer but no rules by default, since MVC and Django code uses them everywhere.
 
+## Code review and GitHub issues
+
+The **Code Review** section (or `review_cli.py`) reviews the diff of the last N commits:
+
+- **Architecture:** rule violations that exist at HEAD but not before the reviewed commits — deterministic, confidence 1.0.
+- **Code:** the AI reports bugs, security, error-handling, resource, concurrency, performance and wrong-layer problems in the *added* lines. Every finding must name an added line and quote it; the quote is checked against the file, failures are sent back once with the reason, and anything still unverifiable is dropped and counted as "unverified" — never shown as fact.
+- **Cost bounds:** at most `REVIEW_MAX_FILES` files and `REVIEW_MAX_BATCHES` model calls per review; the rest are listed as not reviewed. Results are cached per commit range.
+
+**Raising issues** needs `GITHUB_TOKEN` — a fine-grained token limited to the repositories you choose, with *Issues: read and write* (and the default *Metadata: read*). Rules RepoMind enforces itself:
+
+- Issues are filed only on repositories the token can push to or triage (or, in GitHub Actions, the workflow's own repository) — reviewing someone else's repo never files issues there.
+- Each issue carries a fingerprint; a finding that already has an issue (open, or closed by anyone) is never raised again, and closed issues are never reopened.
+- At most `REVIEW_MAX_ISSUES` (10) issues per run, only at or above `REVIEW_MIN_SEVERITY` (medium).
+- Open RepoMind issues whose problem is verifiably gone (the rule violation no longer exists, or the quoted code is no longer in the file) are closed with a comment (`REVIEW_CLOSE_RESOLVED=0` to disable).
+- Credential-like values are masked in issue text, and `@mentions` in AI text are neutralized.
+
+**On every push (GitHub Actions):** copy [`ci/repomind-review.yml`](ci/repomind-review.yml) into the repository as `.github/workflows/repomind-review.yml` and add `GROQ_API_KEYS` (or `BEDROCK_API_KEY` + `BEDROCK_REGION`) as repository secrets. Each push is reviewed and issues are raised automatically, labelled `repomind-review`. A `rules.yaml` in RepoMind's format at the repository root declares that repository's own layers and rules.
+
+**From the command line:**
+
+```bash
+python review_cli.py --repo-path path/to/checkout --commits 5
+```
+
+Add `--raise` to file issues, `--base <sha>` to review `base..HEAD`, and `--fail-on high` to exit non-zero when a finding at that severity exists.
+
 ## API
 
 | Endpoint | Purpose |
@@ -109,6 +140,8 @@ The defaults cover common layouts (controllers/routes/views, services/use cases,
 | `POST /documentation` `{analysis_id}` | Generated documentation |
 | `GET /history/snapshot/{idx}?analysis_id=` | The architecture at a history snapshot, from the temporal graph |
 | `POST /ask` `{question, history}` | Q&A answer, routed intents, and the evidence (tool calls) behind it |
+| `POST /review` `{analysis_id, commits?, base?}` | Code review of recent commits, plus a preview of which findings would become issues (writes nothing) |
+| `POST /review/issues` `{analysis_id, review_id, fingerprints}` | Raises the chosen findings of a stored review as GitHub issues and closes resolved ones |
 | `GET /rules/default` | The default rules YAML |
 
 Generated artifacts are cached by repository, commit, rules, prompt version and model, so re-analyzing the same commit makes no LLM calls. Results that degraded (a section hit a rate limit) are never cached.
@@ -118,14 +151,17 @@ Generated artifacts are cached by repository, commit, rules, prompt version and 
 ```
 server.py              FastAPI app and endpoints
 workspace.py           clone lifecycle, analysis ids, URL validation
-parser/                Tree-sitter extractors (Python, JS, TS)
+parser/                Tree-sitter extractors (Python, JS, TS), tsconfig path aliases
 graph/                 Neo4j schema, current-state loader, history/temporal loader
 layers.py              layer assignment from rules
 rules/                 rules config validation, Cypher engine, in-memory evaluator, scoring
 history.py             git history mining
 snapshots.py           sampled snapshots, diffs, valid-time intervals
 adr/                   decision-point detection, relevance scoring
-agents/                LangGraph agents: drift, ADR, Q&A
+agents/                LangGraph agents: drift, ADR, Q&A, code review
+review/                review diff collection, GitHub issues
+review_cli.py          code review from the command line / CI
+ci/                    GitHub Actions workflow for reviews on every push
 qa_engine.py           Q&A tools (read-only graph queries, source access)
 docs_generator.py      map-reduce documentation
 llm.py                 Bedrock/Groq client, retries, key rotation, usage accounting
@@ -151,20 +187,22 @@ Scripts in `eval/` write reports to `eval/results/`:
 |---|---|
 | `eval_drift.py` | Precision/recall/F1 of violation detection on generated layered projects (Python, CommonJS, TypeScript) with injected violations and decoys, and on real repositories with injected violations |
 | `eval_adr.py` | Decision-point recall against repositories that keep real ADRs (masked from the tool); `--synthesize` adds reconstructions and a human scoring sheet |
-| `eval_qa.py` | Intent-routing accuracy, and live answer correctness and citation validity against graph/git ground truth |
+| `eval_qa.py` | Intent-routing accuracy; an offline evidence check (`--no-llm`: do the tools return the ground truth?); live answer correctness and citation validity against graph/git ground truth |
 | `eval_efficiency.py` | Time per stage, LLM calls and tokens cold vs. warm cache |
+| `eval_review.py` | Code review recall/precision on planted problems and harmless decoys |
 
 Latest results:
 
-- **Drift detection:** precision, recall and F1 of 1.0 on 150 injected violations across 15 generated projects (with 150 decoys), and on 27 violations injected into 3 real repositories. Calls written as `module.function()` aren't resolved — the imports rule still reports those dependencies (measured: imports-rule recall 1.0, calls-rule recall 0.0 for that form).
+- **Drift detection:** precision, recall and F1 of 1.0 on 150 injected violations across 15 generated projects (with 150 decoys), on 27 violations injected into 3 real repositories, and on indirect forms — module objects, submodule imports, barrels and re-exports, tsconfig path aliases, constructor-injected fields — with unknown-class receivers as decoys.
 - **ADR decision points:** 46% strict / 82% temporal recall over 28 real ADRs in 3 repositories; misses are mostly decisions with no trace in code (naming conventions, Git workflow, code style). See the report for which matches land on squashed commits.
+- **Code review:** 11 of 11 planted problems found (SQL and shell injection, hard-coded key, swallowed exception, off-by-one, division by zero, unchecked None, mutable default, file leak, missing `await`, assignment in a condition) with no false positives and no decoy flagged, in each of 3 runs; the planted architecture violation came from the rule engine. These are textbook problems, so this is an upper bound for subtle bugs.
 - **Efficiency:** deterministic analysis of a 50–100 file repository in 12–14 s; warm-cache repeats make zero LLM calls.
-- **Q&A routing:** 100% on a 38-question development set.
+- **Q&A:** routing 100% on a 38-question development set; offline evidence check 30/30 — for every template question on 3 repositories, the tool a correct agent would call returns the full ground truth.
 
 ## Limits
 
-- Python, JavaScript and TypeScript only. TS/JS path aliases (`@/x`) and git submodules aren't resolved.
-- Function calls are resolved for direct names, named imports and destructured `require`; calls through `module.function()` attribute access or default imports aren't.
+- Python, JavaScript and TypeScript only. Git submodules aren't followed.
+- Calls are resolved where the code states the target: direct and imported names, module objects, re-exports and barrels, tsconfig/jsconfig path aliases, static methods, and fields whose class is declared or constructed (`private readonly users: UserService`, `self.repo = Repo()`). Calls on values of unknown class — untyped parameters or fields, interface-typed fields, factory results — aren't; the imports rules still see those dependencies.
 - The temporal graph is sampled (12 snapshots by default), at module and dependency level; functions and calls exist at HEAD only.
 - Reconstructed ADRs are inferences from history, labelled as such, with a capped confidence — not recovered developer intent.
 - One analysis at a time; the graph holds one repository.

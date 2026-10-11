@@ -10,7 +10,9 @@ import pytest
 import cache
 import llm
 import workspace
-from fixtures.make_history_repo import make_history_repo
+from fixtures.fake_github import FakeGitHub
+from fixtures.make_history_repo import CACHE_TTL, make_history_repo
+from review import github_issues
 
 ADR_DECISION = re.compile(r"\[([0-9a-f]{7})\][^\n]*DECISION COMMIT")
 
@@ -33,6 +35,13 @@ def fake_chat(messages, *, purpose, tools=None, **kwargs):
             tc = SimpleNamespace(id="t1", function=SimpleNamespace(name="get_repository_overview", arguments="{}"))
             return _r("", [tc])
         return _r("Three layers. **Confidence:** High — from the overview.")
+    if purpose == "review":
+        line = next(i for i, text in enumerate(CACHE_TTL.splitlines(), 1) if "client.set" in text)
+        return _r(json.dumps({"findings": [{
+            "file": "cache.py", "line": line, "quote": "client.set('last', value, ex=60)", "severity": "medium",
+            "category": "error-handling", "title": "Redis errors propagate into order processing",
+            "explanation": "A Redis outage now fails every order.", "suggestion": "Catch and log cache errors.",
+            "confidence": 0.8}]}))
     raise AssertionError(f"unexpected purpose {purpose}")
 
 
@@ -126,3 +135,36 @@ def test_default_rules_and_index(client):
     assert client.get("/rules/default").text.startswith("# RepoMind AI architecture rules")
     page = client.get("/")
     assert page.status_code == 200 and page.headers["cache-control"] == "no-cache"
+
+
+def test_review_then_one_click_raise(client, analysis, monkeypatch):
+    fake = FakeGitHub("owner/repo")
+    monkeypatch.setattr(github_issues, "_transport", fake.transport())
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_test")
+    # The fixture is a local repo; pretend it is hosted on GitHub.
+    monkeypatch.setattr(workspace._current, "repo_url", "https://github.com/owner/repo")
+
+    resp = client.post("/review", json={"analysis_id": analysis["analysis_id"], "commits": 7})
+    assert resp.status_code == 200, resp.text
+    review = resp.json()
+    assert [f["title"] for f in review["findings"]] == ["Redis errors propagate into order processing"]
+    assert review["range"]["head"] == analysis["head_sha"] and len(review["range"]["commits"]) == 7
+    gh = review["github"]
+    assert gh["can_raise"] and gh["creates"] == 1 and fake.issues == {}      # preview only
+
+    fp = review["findings"][0]["fingerprint"]
+    ref = {"analysis_id": analysis["analysis_id"], "review_id": review["review_id"]}
+    assert client.post("/review/issues", json={**ref, "fingerprints": ["0" * 16]}).status_code == 400
+    assert client.post("/review/issues", json={**ref, "review_id": "nope", "fingerprints": [fp]}).status_code == 404
+    raised = client.post("/review/issues", json={**ref, "fingerprints": [fp]}).json()
+    assert len(raised["result"]["created"]) == 1 and len(fake.issues) == 1
+    assert "cache.py" in fake.issues[1]["body"]
+    again = client.post("/review/issues", json={**ref, "fingerprints": [fp]}).json()
+    assert again["result"]["created"] == [] and len(fake.issues) == 1
+
+
+def test_review_without_token_still_reviews(client, analysis, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    review = client.post("/review", json={"analysis_id": analysis["analysis_id"], "commits": 1}).json()
+    assert review["github"]["can_raise"] is False and review["resolved"]   # the fix commit resolved violations
+    assert client.post("/review", json={"analysis_id": "nope"}).status_code == 409

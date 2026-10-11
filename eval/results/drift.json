@@ -167,21 +167,66 @@
       "f1": 1.0
     }
   },
-  "hard_cases": {
+  "indirect": {
     "Python": {
-      "imports_rule_recall": 1.0,
-      "calls_rule_recall": 0.0,
-      "false_positives": 0
+      "no-controller-imports-db": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "no-controller-to-db": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "missed": [],
+      "unexpected": []
     },
     "JavaScript (CommonJS)": {
-      "imports_rule_recall": 1.0,
-      "calls_rule_recall": 0.0,
-      "false_positives": 0
+      "no-controller-imports-db": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "no-controller-to-db": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "missed": [],
+      "unexpected": []
     },
     "TypeScript (ES modules)": {
-      "imports_rule_recall": 1.0,
-      "calls_rule_recall": 0.0,
-      "false_positives": 0
+      "no-controller-imports-db": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "no-controller-to-db": {
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "missed": [],
+      "unexpected": []
     }
   },
   "real": [

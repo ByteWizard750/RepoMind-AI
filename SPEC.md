@@ -1420,3 +1420,155 @@ with the scope decisions listed here. `README.md` is the user-facing guide.
   `python eval/eval_qa.py`, `python eval/eval_adr.py --synthesize` and
   `python eval/eval_efficiency.py` once Bedrock (or fresh Groq budget) is
   available.
+
+## Implementation Scope — Dependency resolution beyond direct names
+
+The drift evaluation measured one gap honestly: calls written through a
+module object (`users.get_user()`) were never resolved, so the calls rule
+missed them (recall 0.0 for that form) and real repositories had far fewer
+CALLS edges than they should. A survey of six real repositories showed the
+gap was wider than that one form: NestJS and Angular reach services only
+through injected fields (`this.userService.findAll()`), Next.js projects
+import almost everything through tsconfig path aliases (`@/lib/utils`),
+Express projects go through `services/index.js` barrels, and Python
+packages import submodules (`from . import views`) and re-export names from
+`__init__.py`.
+
+### What was built
+- **Python** (`parser/ast_extractor.py`): `from pkg import mod` (and
+  `from . import mod`) now adds the IMPORTS edge to the submodule, not just
+  the package; calls resolve through module bindings (`import a.b as m;
+  m.f()`, `a.b.f()`, `mod.f()`), through package re-exports, to class
+  methods (`Cls.build()`) and to `__init__` for local classes; and
+  `self.x.m()` resolves when `__init__` makes x's class explicit
+  (`self.x = Foo()`, or `self.x = param` with `param: Foo`).
+- **JavaScript/TypeScript** (`parser/js_extractor.py`, `parser/tsconfig.py`):
+  JS and TS are resolved as one module graph, so a TS file importing JS, or
+  `./util.js` naming `util.ts` (NodeNext), is an edge. tsconfig/jsconfig
+  `paths` and `baseUrl` are read (JSON with comments, local `extends`
+  chains, nearest config per folder); a bare specifier that matches no
+  parsed file stays external. Calls resolve through module objects
+  (`import * as m`, `const m = require()`, default imports), member
+  requires, barrels (`export * from`, `export { default as x } from`,
+  `module.exports.x = require()`), the default export's name, static
+  methods, `module.exports = new Service()` instances, and `this.x.m()`
+  when x's class is declared (TypeScript parameter properties and typed
+  fields) or constructed (`this.x = new Foo()`). Re-exports bind names for
+  importers only, never inside the barrel itself. `.d.ts` files are no
+  longer parsed as modules.
+- History snapshots also materialize `tsconfig*.json`/`jsconfig*.json`, so
+  aliases resolve at every sampled commit.
+- The cache version was bumped (`PROMPT_VERSION = "3"`): generated
+  artifacts are built from the graph, which now has more edges.
+
+### What is still not resolved, deliberately
+Calls on values whose class the code does not state: parameters without a
+type, untyped or interface-typed fields, factory results, local objects.
+Resolving those needs type inference, and guessing by method name would
+reintroduce exactly the false positives the decoys test for.
+
+### Verification
+- 17 new resolution tests (124 total, all passing), including negative
+  cases that must stay unresolved: parameters, untyped fields,
+  interface-typed fields, local objects with a same-named method, and
+  names re-exported but not imported. The `test_repo` baseline is
+  unchanged.
+- Old vs new parser on six real repositories, every added edge sampled by
+  hand, no edge lost, no existing violation changed:
+
+  | Repository | Imports | Calls | Cross-module calls |
+  |---|---|---|---|
+  | fastapi-realworld-example-app | 201 → 226 | 71 → 86 | 44 → 58 |
+  | node-express-boilerplate | 95 → 95 | 14 → 25 | 0 → 11 |
+  | express-typescript-boilerplate | 120 → 124 | 19 → 37 | 5 → 21 |
+  | cosmicpython/code | 49 → 101 | 65 → 111 | 29 → 70 |
+  | shadcn-ui/taxonomy | 0 → 247 | 20 → 80 | 0 → 60 |
+  | nestjs-realworld-example-app | 125 → 131 | 7 → 29 | 0 → 22 |
+
+- `eval_drift.py` part A2 now tests four indirect forms per language (Python
+  module alias, submodule import, constructor injection, package re-export;
+  CommonJS module object, barrel, constructed field, member require; TS
+  namespace import, tsconfig alias, NestJS-style injection, `export *`
+  barrel) plus unknown-class receivers as decoys: imports-rule and
+  calls-rule recall 1.0, no false positives (calls-rule recall was 0.0).
+  Parts A, B and C are unchanged at 1.0.
+- `eval_qa.py --no-llm` adds an offline evidence check: for every template
+  question, the tool a correct agent would call returns the full ground
+  truth — 30/30 on the history fixture, node-express-boilerplate and
+  fastapi-realworld-example-app. Routing: 38/38.
+
+## Implementation Scope — Code review agent and GitHub issues
+
+Requested after the planned scope was complete: an agent that reviews code
+changes and raises GitHub issues when the code has a problem or the
+architecture isn't what's intended. SPEC had listed GitHub integration as
+out of scope; nothing reviewed changes or raised issues before this.
+
+### Decisions (with the user)
+- Issues are raised automatically in CI (a GitHub Action on every push) and
+  with one click in the web app after seeing the findings.
+- The review is an AI review of the changed lines of recent commits; rule
+  violations introduced by those commits are included deterministically
+  (the request named architecture explicitly). Separate deterministic lint
+  checks and a repo-wide architecture audit were not built.
+
+### What was built
+- `review/diff.py`: commit range (last N first-parent commits, or base..HEAD
+  with fallbacks for a branch's first push, unknown or non-ancestor bases),
+  `git diff` parsed per file with new-side line numbers and the set of added
+  lines, file prioritization (most changed first, tests last, generated and
+  vendored code skipped), and batching under a per-call size and a
+  per-review call budget.
+- `agents/review_graph.py` (LangGraph): collect → architecture → review →
+  rank → assemble. Architecture findings are violations present at head but
+  not at base (pure evaluator on both commits, no Neo4j), grouped per rule
+  and caller module, located at the call site or import line. The model
+  sees the diff plus each file's layer, the layers it must not depend on,
+  its imports and the already-reported violations. Each AI finding must name
+  an added line (±2) and quote it; the quote is checked against the file at
+  head, failures go back once with reasons, and what still fails is dropped
+  and counted as unverified. Ranking is severity × confidence; fingerprints
+  ignore line numbers so they survive edits elsewhere in the file.
+- `review/github_issues.py`: access check (push/triage/maintain/admin, or the
+  workflow's own repository in Actions), existing RepoMind issues read by a
+  base64 fingerprint marker, a plan (create / skip with reason / close as
+  resolved) and its application. Duplicates are never raised, closed issues
+  never reopened, issues per run capped, resolved issues closed only when
+  the violation or quoted code is verifiably gone. Credential-like values
+  are masked and `@mentions` neutralized in issue text.
+- `POST /review` (review + preview, writes nothing) and `POST /review/issues`
+  (raises only fingerprints from that stored review); a Code Review section
+  in the UI with per-finding checkboxes; `review_cli.py` for CI with
+  `--raise` and `--fail-on`; `ci/repomind-review.yml`.
+
+### Bugs found by the first live runs
+- gpt-oss sometimes closed the findings array with `}}` instead of `}]}`;
+  Groq rejected the whole answer (`json_validate_failed`), losing every
+  finding. `llm.repair_json_brackets` fixes only mismatched or missing
+  closing brackets in the rejected text (strings untouched, nothing else
+  changed) and accepts it only if it then parses; otherwise one retry with
+  sampling.
+- A 2,500-token answer budget was nearly all used by reasoning plus a dozen
+  findings, cutting answers short; raised to 4,500 with batches shrunk to
+  stay within Groq's 8k tokens/minute.
+- A large push could cost unbounded model calls; capped per review.
+- A "hard-coded secret" finding copied the secret into the issue body and
+  marker; values are now masked, and the resolved-check compares masked
+  text on both sides.
+- The CLI crashed printing `→` on a Windows console (cp1252).
+- Pre-existing: the documentation section overflowed phone width (wide
+  Markdown tables, long unbroken paths).
+
+### Verification
+- 32 new tests (diff parsing, range fallbacks, validation, fingerprints,
+  the agent with a fake model, an in-memory GitHub: permissions, duplicates,
+  closed issues, cap, selection, resolution, secret masking, token never in
+  output; API end to end; CLI exit codes; JSON repair). Full suite passing.
+- `eval/eval_review.py` with `openai/gpt-oss-120b` on Groq: 11/11 planted
+  problems found, precision 1.0, no decoy flagged, in each of 3 runs; the
+  architecture violation came from the rule engine; ~4.8k tokens per review.
+- Browser walkthrough against a local fake GitHub: review, preview, raise
+  with a finding unticked, re-run showing "already open #n", phone width.
+- Not yet done: a live run on a real GitHub repository and the GitHub
+  Action, pending a throwaway repository and token from the user.
+

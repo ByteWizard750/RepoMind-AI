@@ -1,0 +1,391 @@
+{
+  "runs": [
+    {
+      "planted": {
+        "sql-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "SQL injection in find_order"
+          ]
+        },
+        "hardcoded-key": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Hard\u2011coded live Stripe API key"
+          ]
+        },
+        "swallowed-exception": {
+          "found": true,
+          "category_expected": "error-handling",
+          "categories": [
+            "error-handling"
+          ],
+          "titles": [
+            "Swallowed exception in create_order"
+          ]
+        },
+        "off-by-one": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Off\u2011by\u2011one loop skips first item in order_total"
+          ]
+        },
+        "division-by-zero": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Division by zero in average_price for empty list"
+          ]
+        },
+        "unchecked-none": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument in add_to_cart",
+            "Missing None check in user_email"
+          ]
+        },
+        "mutable-default": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument in add_to_cart",
+            "Missing None check in user_email"
+          ]
+        },
+        "file-leak": {
+          "found": true,
+          "category_expected": "resource",
+          "categories": [
+            "resource"
+          ],
+          "titles": [
+            "File handle not closed in read_lines"
+          ]
+        },
+        "shell-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Command injection risk in make_thumbnail"
+          ]
+        },
+        "missing-await": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Missing await for async repository call"
+          ]
+        },
+        "assignment-in-condition": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Assignment used instead of comparison in isPaid"
+          ]
+        }
+      },
+      "recall": 1.0,
+      "findings": 11,
+      "matched_findings": 11,
+      "precision": 1.0,
+      "decoys_flagged": [],
+      "other_findings": [],
+      "architecture_found": true,
+      "unverified_dropped": 0,
+      "warnings": [],
+      "llm_calls": 1,
+      "tokens": 4742
+    },
+    {
+      "planted": {
+        "sql-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "SQL injection in find_order"
+          ]
+        },
+        "hardcoded-key": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Hard\u2011coded live Stripe API key"
+          ]
+        },
+        "swallowed-exception": {
+          "found": true,
+          "category_expected": "error-handling",
+          "categories": [
+            "error-handling"
+          ],
+          "titles": [
+            "Swallowing exceptions in create_order"
+          ]
+        },
+        "off-by-one": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Off\u2011by\u2011one error in order_total loop"
+          ]
+        },
+        "division-by-zero": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Division by zero in average_price"
+          ]
+        },
+        "unchecked-none": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument in add_to_cart",
+            "Missing None check in user_email"
+          ]
+        },
+        "mutable-default": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument in add_to_cart",
+            "Missing None check in user_email"
+          ]
+        },
+        "file-leak": {
+          "found": true,
+          "category_expected": "resource",
+          "categories": [
+            "resource"
+          ],
+          "titles": [
+            "File handle not closed in read_lines"
+          ]
+        },
+        "shell-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Command injection via filename in make_thumbnail"
+          ]
+        },
+        "missing-await": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Missing await on async fetch"
+          ]
+        },
+        "assignment-in-condition": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Assignment instead of comparison in isPaid"
+          ]
+        }
+      },
+      "recall": 1.0,
+      "findings": 11,
+      "matched_findings": 11,
+      "precision": 1.0,
+      "decoys_flagged": [],
+      "other_findings": [],
+      "architecture_found": true,
+      "unverified_dropped": 0,
+      "warnings": [],
+      "llm_calls": 1,
+      "tokens": 5197
+    },
+    {
+      "planted": {
+        "sql-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "SQL injection in find_order"
+          ]
+        },
+        "hardcoded-key": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Hard\u2011coded secret API key"
+          ]
+        },
+        "swallowed-exception": {
+          "found": true,
+          "category_expected": "error-handling",
+          "categories": [
+            "error-handling"
+          ],
+          "titles": [
+            "Swallowed exception in create_order"
+          ]
+        },
+        "off-by-one": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Off\u2011by\u2011one loop skips first item"
+          ]
+        },
+        "division-by-zero": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Division by zero in average_price"
+          ]
+        },
+        "unchecked-none": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument",
+            "Assumes user always exists in user_email"
+          ]
+        },
+        "mutable-default": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Mutable default argument",
+            "Assumes user always exists in user_email"
+          ]
+        },
+        "file-leak": {
+          "found": true,
+          "category_expected": "resource",
+          "categories": [
+            "resource"
+          ],
+          "titles": [
+            "File handle not closed in read_lines"
+          ]
+        },
+        "shell-injection": {
+          "found": true,
+          "category_expected": "security",
+          "categories": [
+            "security"
+          ],
+          "titles": [
+            "Command injection via unsanitized filename"
+          ]
+        },
+        "missing-await": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Missing await on async repository call"
+          ]
+        },
+        "assignment-in-condition": {
+          "found": true,
+          "category_expected": "bug",
+          "categories": [
+            "bug"
+          ],
+          "titles": [
+            "Assignment instead of comparison in isPaid"
+          ]
+        }
+      },
+      "recall": 1.0,
+      "findings": 11,
+      "matched_findings": 11,
+      "precision": 1.0,
+      "decoys_flagged": [],
+      "other_findings": [],
+      "architecture_found": true,
+      "unverified_dropped": 0,
+      "warnings": [],
+      "llm_calls": 1,
+      "tokens": 5276
+    }
+  ],
+  "provider": {
+    "provider": "bedrock",
+    "model": "openai.gpt-oss-120b-1:0",
+    "keys": 1,
+    "parallelism": 4
+  }
+}

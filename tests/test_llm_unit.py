@@ -152,3 +152,43 @@ def test_extract_retry_after(message, seconds):
 
 def test_parse_json_tolerates_fences():
     assert llm.parse_json('```json\n{"x": [1, 2]}\n```') == {"x": [1, 2]}
+
+
+class _JsonRejected(Exception):
+    """Shaped like openai.BadRequestError for Groq's json_validate_failed."""
+    def __init__(self, generation):
+        super().__init__("Error code: 400 - json_validate_failed")
+        self.body = {"error": {"code": "json_validate_failed", "failed_generation": generation}}
+
+
+def test_rejected_json_with_a_wrong_bracket_is_repaired(fake):
+    almost = '{"findings":[{"file":"a.py","quote":"x = {1: [2]}"},{"file":"b.py"}}'
+    fake.script["behaviour"] = lambda name, params, n: (_ for _ in ()).throw(_JsonRejected(almost))
+    result = llm.chat(MSG, purpose="review", max_tokens=100, json_mode=True)
+    assert llm.parse_json(result.content) == {"findings": [{"file": "a.py", "quote": "x = {1: [2]}"},
+                                                           {"file": "b.py"}]}
+    assert len(fake.script["calls"]) == 1          # repaired, not re-asked
+
+
+def test_unrepairable_rejected_json_retries_once_with_sampling(fake):
+    def behaviour(name, params, n):
+        if n == 1:
+            raise _JsonRejected('{"findings": [ "unterminated')
+        return _response('{"findings": []}')
+    fake.script["behaviour"] = behaviour
+    result = llm.chat(MSG, purpose="review", max_tokens=100, json_mode=True, temperature=0)
+    assert result.content == '{"findings": []}'
+    assert [c[1]["temperature"] for c in fake.script["calls"]] == [0, 0.3]
+
+
+def test_bracket_repair_never_rewrites_content():
+    assert llm.repair_json_brackets('{"a": "]}{[", "b": [1, 2}') == {"a": "]}{[", "b": [1, 2]}
+    assert llm.repair_json_brackets('{"a": 1,}') is None   # other syntax errors aren't "repaired"
+    assert llm.repair_json_brackets("[1, 2]") is None       # only objects are accepted
+
+
+def test_parse_json_repairs_unvalidated_bracket_slips():
+    # Bedrock doesn't validate JSON mode, so gpt-oss's doubled opener reaches parse_json.
+    raw = '<reasoning>uses `${x}` and {braces}</reasoning>{\n{"findings": [\n{"file": "a.js", "q": "{["}\n] }'
+    assert llm.parse_json(raw) == {"findings": [{"file": "a.js", "q": "{["}]}
+    assert llm.repair_json_brackets('{"a": {"b": 1}}') == {"a": {"b": 1}}   # valid nesting untouched

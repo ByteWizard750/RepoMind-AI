@@ -287,6 +287,38 @@
   .badge.medium { background: var(--surface); color: var(--text); }
   .badge.low { background: var(--surface); color: var(--text-dim); border-color: var(--text-dim); }
   .badge.status { border-style: dashed; color: var(--text); background: transparent; }
+  .badge.critical { background: var(--invert-bg); color: var(--invert-text); box-shadow: 3px 3px 0 0 var(--border); }
+
+  /* ---------- code review ---------- */
+  .review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 1rem; font-size: 0.82rem; }
+  .review-controls select {
+    font: inherit;
+    background: var(--surface);
+    color: var(--text);
+    border: 2px solid var(--border);
+    padding: 0.35rem 0.5rem;
+  }
+  .review-controls button { margin-left: 0.4rem; }
+  .review-summary { font-size: 0.8rem; color: var(--text-dim); line-height: 1.7; margin: 0 0 0.8rem; }
+  .review-summary strong { color: var(--text); font-weight: 500; }
+  .finding-head { display: flex; flex-wrap: wrap; gap: 0.5rem 0.7rem; align-items: center; }
+  .finding-head label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+  .finding-head input[type=checkbox] { width: 1.05rem; height: 1.05rem; accent-color: var(--text); }
+  .finding-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.92rem; }
+  .finding-where { font-size: 0.74rem; word-break: break-all; }
+  .finding-state { font-size: 0.72rem; color: var(--text-dim); margin-left: auto; }
+  .finding-state.create { color: var(--text); }
+  .finding-quote {
+    background: var(--bg);
+    border: 1px solid var(--text-faint);
+    padding: 0.5rem 0.6rem;
+    overflow-x: auto;
+    font-size: 0.74rem;
+    margin: 0;
+  }
+  .review-raise { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem 1.2rem; margin-top: 1.2rem; }
+  .review-raise .note { font-size: 0.76rem; color: var(--text-dim); line-height: 1.6; flex: 1 1 260px; }
+  .raise-result ul { margin: 0.4rem 0 0; padding-left: 1.2rem; font-size: 0.8rem; line-height: 1.7; }
 
   ul.edge-list { list-style: none; padding: 0; margin: 0; font-size: 0.78rem; }
   ul.edge-list li {
@@ -429,8 +461,9 @@
     font-size: 0.85em;
   }
   .markdown-body pre { background: var(--surface-2); border: 2px solid var(--border); padding: 0.9rem; overflow-x: auto; }
-  .markdown-body pre code { border: none; padding: 0; background: none; }
-  .markdown-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.85em; }
+  .markdown-body { overflow-wrap: anywhere; }  /* long file paths and a::b edges */
+  .markdown-body pre code { border: none; padding: 0; background: none; overflow-wrap: normal; }
+  .markdown-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.85em; display: block; overflow-x: auto; }
   .markdown-body th, .markdown-body td { border: 2px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
   .markdown-body th {
     background: var(--surface-2);
@@ -606,6 +639,27 @@
       </div>
       <div id="drift-notice"></div>
       <div id="violations"></div>
+    </section>
+
+    <section>
+      <h2>Code Review <span class="h2-note">recent changes · raised as GitHub issues</span></h2>
+      <p class="section-lead">Reviews the diff of the latest commits. Rule violations those commits introduced come from the rule engine; the AI reports bugs, security and error-handling problems in the changed lines, and every AI finding must quote a line the commits added, or it is dropped. Nothing is posted to GitHub until you press Raise; issues already raised or closed are never raised again.</p>
+      <div class="review-controls">
+        <label for="review-commits">Review the last</label>
+        <select id="review-commits">
+          <option value="1">1</option><option value="3">3</option><option value="5" selected>5</option>
+          <option value="10">10</option><option value="20">20</option>
+        </select>
+        <span>commits</span>
+        <button id="review-btn" type="button" class="secondary">Run review</button>
+      </div>
+      <div id="review-status"></div>
+      <div id="review-findings"></div>
+      <div class="review-raise" id="review-raise" hidden>
+        <button id="raise-btn" type="button">Raise issues</button>
+        <span class="note" id="raise-note"></span>
+      </div>
+      <div class="raise-result" id="raise-result" aria-live="polite"></div>
     </section>
 
     <section>
@@ -821,6 +875,7 @@
     $('overview-note').title = Object.entries(data.timings || {}).map(([k, v]) => `${k.replace('_', ' ')} ${v}s`).join(' · ');
 
     renderDrift(data);
+    resetReview();
     renderHistory(h);
     await renderMermaid($('diagram-container'), data.mermaid_diagram);
 
@@ -922,6 +977,159 @@
       if (!current || current.analysis_id !== id) return;
       $('violations').querySelectorAll('.pending').forEach((p) => p.remove());
       $('drift-notice').innerHTML = `<div class="error-box">Couldn't explain the violations: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // ---------- code review ----------
+  let currentReview = null;
+  $('review-btn').addEventListener('click', runReview);
+  $('raise-btn').addEventListener('click', raiseIssues);
+  $('review-findings').addEventListener('change', updateRaiseButton);
+
+  function githubSlug() {
+    const m = current && current.repo_url.match(/^https?:\/\/github\.com\/([^/]+\/[^/#?]+?)(?:\.git)?\/?$/i);
+    return m ? m[1] : null;
+  }
+
+  function resetReview() {
+    currentReview = null;
+    $('review-status').innerHTML = pending('Not run yet. The review uses the AI, so it only runs when you ask.', false);
+    $('review-findings').innerHTML = '';
+    $('review-raise').hidden = true;
+    $('raise-result').innerHTML = '';
+  }
+
+  async function runReview() {
+    if (!current) return;
+    const id = current.analysis_id;
+    const reviewBtn = $('review-btn');
+    reviewBtn.disabled = true;
+    $('review-findings').innerHTML = '';
+    $('review-raise').hidden = true;
+    $('raise-result').innerHTML = '';
+    $('review-status').innerHTML = pending('Reviewing the changes (the AI reads each changed file; this can take a minute)');
+    try {
+      const data = await postJson('/review', { analysis_id: id, commits: Number($('review-commits').value) });
+      if (!current || current.analysis_id !== id) return;
+      currentReview = data;
+      renderReview(data);
+    } catch (err) {
+      if (!current || current.analysis_id !== id) return;
+      $('review-status').innerHTML = `<div class="error-box">Couldn't run the review: ${escapeHtml(err.message)}</div>`;
+    } finally {
+      reviewBtn.disabled = false;
+    }
+  }
+
+  function renderReview(r) {
+    const rng = r.range;
+    const gh = r.github || {};
+    const items = new Map((gh.items || []).map((i) => [i.fingerprint, i]));
+    const plural = (n, word) => `<strong>${n}</strong> ${word}${n === 1 ? '' : 's'}`;
+    const base = rng.empty_base ? '(start)' : commitLink(rng.base, rng.base_short);
+    const skipped = r.files_skipped || [];
+    $('review-status').innerHTML = `
+      <p class="review-summary">Reviewed ${plural(rng.commits.length, 'commit')} (${base}..${commitLink(rng.head, rng.head_short)}),
+        ${plural(r.files_reviewed.length, 'file')}: ${plural(r.findings.length, 'finding')}${r.unverified ? ` · ${r.unverified} AI finding${r.unverified === 1 ? '' : 's'} dropped because ${r.unverified === 1 ? 'it' : 'they'} didn't match the changed lines` : ''}${(r.resolved || []).length ? ` · ${plural(r.resolved.length, 'rule violation')} resolved by these commits` : ''}${r.llm_calls_saved ? ` · ${r.llm_calls_saved} cached` : ''}</p>
+      ${(r.warnings || []).length ? `<div class="notice">${r.warnings.map((w) => escapeHtml(w)).join('<br>')}</div>` : ''}
+      ${skipped.length ? `<details class="snippets"><summary>${skipped.length} file${skipped.length === 1 ? '' : 's'} not reviewed</summary><pre>${escapeHtml(skipped.map((f) => `${f.path} — ${f.reason}`).join('\n'))}</pre></details>` : ''}`;
+    $('review-findings').innerHTML = r.findings.length
+      ? r.findings.map((f) => findingCard(f, items.get(f.fingerprint), gh.can_raise, rng.head)).join('')
+      : '<p class="no-violations">No problems found in these changes.</p>';
+
+    const raise = $('review-raise');
+    raise.hidden = !r.findings.length && !(gh.resolve || []).length;
+    const reasons = {};
+    for (const i of (gh.items || []).filter((x) => x.action === 'skip')) {
+      const r = i.reason.startsWith('already open') ? 'already open'
+        : i.reason.startsWith('closed as') ? 'closed earlier'
+        : i.reason.startsWith('below') ? 'below the severity threshold'
+        : i.reason.startsWith('over the') ? 'over the per-run issue limit' : i.reason;
+      reasons[r] = (reasons[r] || 0) + 1;
+    }
+    const notRaised = Object.entries(reasons).map(([r, n]) => `${n} ${r}`).join(', ');
+    $('raise-note').innerHTML = gh.can_raise
+      ? `Issues go to <strong>${escapeHtml(gh.slug)}</strong>, labelled <code>repomind-review</code>.${notRaised ? ` Not raised: ${escapeHtml(notRaised)}.` : ''}${(gh.resolve || []).length ? ` ${gh.resolve.length} open RepoMind issue${gh.resolve.length === 1 ? ' is' : 's are'} now resolved and will be closed: ${gh.resolve.map((x) => `<a href="${escapeHtml(x.url)}" target="_blank" rel="noopener">#${x.number}</a>`).join(', ')}.` : ''}`
+      : escapeHtml(gh.reason || 'Issues can\'t be raised for this repository.');
+    updateRaiseButton();
+  }
+
+  function findingCard(f, item, canRaise, head) {
+    const slug = githubSlug();
+    const where = `${f.file}${f.line ? ':' + f.line : ''}`;
+    const whereHtml = slug
+      ? `<a class="finding-where" href="https://github.com/${slug}/blob/${encodeURIComponent(head)}/${f.file.split('/').map(encodeURIComponent).join('/')}${f.line ? '#L' + f.line : ''}" target="_blank" rel="noopener"><code>${escapeHtml(where)}</code></a>`
+      : `<code class="finding-where">${escapeHtml(where)}</code>`;
+    const creatable = canRaise && item && item.action === 'create';
+    let state = '';
+    if (item && item.issue) state = `<a href="${escapeHtml(item.issue.url)}" target="_blank" rel="noopener">${escapeHtml(item.reason)}</a>`;
+    else if (item) state = escapeHtml(item.action === 'create' ? 'will be raised' : item.reason);
+    const source = f.kind === 'architecture' ? 'rule engine' : `AI review · confidence ${f.confidence}`;
+    const title = `<span class="finding-title">${escapeHtml(f.title)}</span>`;
+    return `<div class="group-card" data-fp="${escapeHtml(f.fingerprint)}">
+      <div class="group-head finding-head">
+        ${creatable ? `<label><input type="checkbox" value="${escapeHtml(f.fingerprint)}" checked aria-label="Raise this finding">${title}</label>` : title}
+        <span class="badge ${escapeHtml(f.severity)}">${escapeHtml(f.severity)}</span>
+        <span class="chip">${escapeHtml(f.category)}</span>
+        <span class="finding-state${creatable ? ' create' : ''}">${state}</span>
+      </div>
+      <div class="group-body">
+        <div>${whereHtml} <span class="edge-more">· ${escapeHtml(source)}${(f.commits || []).length ? ' · changed in ' + f.commits.map((c) => commitLink(c, c)).join(', ') : ''}</span></div>
+        ${f.quote ? `<pre class="finding-quote">${escapeHtml(f.quote)}</pre>` : ''}
+        <div class="kv"><span class="k">Problem</span>${escapeHtml(f.explanation)}</div>
+        ${f.suggestion ? `<div class="kv"><span class="k">Suggested fix</span>${escapeHtml(f.suggestion)}</div>` : ''}
+        ${(f.edges || []).length ? `<ul class="edge-list">${f.edges.slice(0, 8).map((e) => `<li>${escapeHtml(e.caller)} &rarr; ${escapeHtml(e.callee)}</li>`).join('')}</ul>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function selectedFindings() {
+    return [...$('review-findings').querySelectorAll('input[type=checkbox]:checked:not(:disabled)')].map((c) => c.value);
+  }
+
+  function updateRaiseButton() {
+    const gh = currentReview && currentReview.github;
+    const n = selectedFindings().length;
+    const closes = gh && gh.can_raise ? (gh.resolve || []).length : 0;
+    const raiseBtn = $('raise-btn');
+    raiseBtn.disabled = !gh || !gh.can_raise || (!n && !closes);
+    raiseBtn.textContent = n ? `Raise ${n} issue${n === 1 ? '' : 's'} on GitHub` : (closes ? `Close ${closes} resolved issue${closes === 1 ? '' : 's'}` : 'Raise issues on GitHub');
+  }
+
+  async function raiseIssues() {
+    const review = currentReview;
+    if (!review || !current) return;
+    const fps = selectedFindings();
+    const raiseBtn = $('raise-btn');
+    raiseBtn.disabled = true;
+    $('raise-result').innerHTML = pending('Raising issues on GitHub');
+    try {
+      // An empty selection creates nothing and only closes resolved issues.
+      const data = await postJson('/review/issues', {
+        analysis_id: current.analysis_id, review_id: review.review_id, fingerprints: fps,
+      });
+      if (currentReview !== review) return;
+      const res = data.result || { created: [], closed: [], errors: [] };
+      if (!data.can_raise) throw new Error(data.reason || 'GitHub refused the request.');
+      for (const c of res.created) {
+        const card = $('review-findings').querySelector(`[data-fp="${CSS.escape(c.fingerprint)}"]`);
+        if (!card) continue;
+        const box = card.querySelector('input[type=checkbox]');
+        if (box) { box.checked = false; box.disabled = true; }
+        card.querySelector('.finding-state').innerHTML = `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">raised as #${c.number}</a>`;
+      }
+      const lines = [
+        ...res.created.map((c) => `<li>Created <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">#${c.number}</a></li>`),
+        ...res.closed.map((c) => `<li>Closed <a href="${escapeHtml(c.url)}" target="_blank" rel="noopener">#${c.number}</a> (${escapeHtml(c.reason)})</li>`),
+        ...res.errors.map((e) => `<li>Error: ${escapeHtml(e)}</li>`),
+      ];
+      $('raise-result').innerHTML = lines.length ? `<div class="notice">GitHub updated:<ul>${lines.join('')}</ul></div>`
+        : '<div class="notice">Nothing to change on GitHub.</div>';
+      currentReview.github.resolve = [];
+    } catch (err) {
+      $('raise-result').innerHTML = `<div class="error-box">Couldn't raise issues: ${escapeHtml(err.message)}</div>`;
+    } finally {
+      updateRaiseButton();
     }
   }
 

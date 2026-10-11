@@ -110,7 +110,12 @@ def _build_provider(name: str):
         if not key:
             return None
         region = os.environ.get("BEDROCK_REGION", DEFAULT_BEDROCK_REGION).strip()
-        base_url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1"
+        # BEDROCK_ENDPOINT=mantle uses the newer endpoint, which serves more
+        # open-weight models (Kimi, Qwen3 Coder, DeepSeek) under unversioned ids.
+        if os.environ.get("BEDROCK_ENDPOINT", "runtime").strip().lower() == "mantle":
+            base_url = f"https://bedrock-mantle.{region}.api.aws/v1"
+        else:
+            base_url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1"
         client = OpenAI(base_url=base_url, api_key=key, max_retries=0)
         parallelism = int(os.environ.get("BEDROCK_MAX_CONCURRENCY", DEFAULT_BEDROCK_CONCURRENCY))
         return _Provider("bedrock", os.environ.get("BEDROCK_MODEL", DEFAULT_BEDROCK_MODEL), [client],
@@ -217,7 +222,67 @@ def parse_json(text: str) -> dict:
         match = _JSON_OBJECT.search(text)
         if not match:
             raise ValueError("model output contained no JSON object")
-        return json.loads(match.group(0))
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            # Providers that don't validate JSON mode (Bedrock) pass gpt-oss's
+            # bracket slips through; Groq rejects them and chat() repairs there.
+            repaired = repair_json_brackets(match.group(0))
+            if repaired is None:
+                raise
+            return repaired
+
+
+def repair_json_brackets(text: str):
+    """Fixes only mismatched or missing closing brackets in otherwise valid
+    JSON (gpt-oss sometimes closes an array of objects with `}}` instead of
+    `}]}`, or opens one object twice: `{ {"findings": ...`) and returns the
+    parsed object, or None if that isn't enough. Strings are left untouched;
+    nothing is added except closers, and nothing is dropped except openers
+    that can never be valid (a `{` directly followed by `{` or `[`)."""
+    text = text or ""
+    out, stack, in_string, escaped = [], [], False, False
+    pairs = {"{": "}", "[": "]"}
+    for i, ch in enumerate(text):
+        if in_string:
+            out.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{" and text[i + 1:].lstrip()[:1] in ("{", "["):
+            continue                      # an object can't start with a value
+        elif ch in pairs:
+            stack.append(pairs[ch])
+        elif ch in "]}":
+            while stack and stack[-1] != ch:
+                out.append(stack.pop())   # close what the model forgot to
+            if not stack:
+                continue                  # a stray closer
+            stack.pop()
+        out.append(ch)
+    out.extend(reversed(stack))
+    try:
+        value = json.loads("".join(out))
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _failed_generation(exc):
+    """The text a provider rejected in JSON mode (Groq returns it with
+    json_validate_failed), or None."""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error", body)
+        if isinstance(err, dict) and isinstance(err.get("failed_generation"), str):
+            return err["failed_generation"]
+    return None
 
 
 def _classify(exc_text: str):
@@ -274,6 +339,7 @@ def chat(messages, *, purpose, max_tokens, tools=None, tool_choice=None, json_mo
         params["response_format"] = {"type": "json_object"}
 
     length_retried = False
+    json_retried = False
     attempt = 0
     while True:
         slot, wait = _pick_slot(provider, key_slot)
@@ -293,6 +359,19 @@ def chat(messages, *, purpose, max_tokens, tools=None, tool_choice=None, json_mo
             if json_mode and "response_format" in lowered and "response_format" in params:
                 params.pop("response_format")
                 _notice(f"{provider.name} rejected JSON mode; falling back to prompt-only JSON.")
+                continue
+            if json_mode and "json_validate_failed" in lowered:
+                repaired = repair_json_brackets(_failed_generation(exc))
+                if repaired is not None:
+                    _notice(f"{provider.name} rejected the model's JSON over a bracket; repaired it.")
+                    _record(purpose)
+                    return ChatResult(content=json.dumps(repaired), tool_calls=[], finish_reason="stop",
+                                      provider=provider.name)
+            if json_mode and "json_validate_failed" in lowered and not json_retried:
+                # Almost-JSON the bracket repair couldn't fix; at temperature 0 the
+                # same request repeats the same output, so retry once with sampling.
+                json_retried = True
+                params["temperature"] = max(params["temperature"], 0.3)
                 continue
             if (needs_tools and provider.name == "bedrock" and "tool" in lowered
                     and ("400" in lowered or "not support" in lowered) and "tool_use_failed" not in lowered):

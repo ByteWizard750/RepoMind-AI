@@ -12,7 +12,7 @@ import os
 import tree_sitter_python as tspython
 from tree_sitter import Language, Parser
 
-from parser import js_extractor, ts_extractor
+from parser import js_extractor
 
 PY_LANGUAGE = Language(tspython.language())
 
@@ -29,7 +29,7 @@ _LAYER_BY_FILENAME = {
 
 def parse_repo(repo_path: str) -> dict:
     """Parse every supported source file under repo_path (Python, plus
-    JavaScript/TypeScript via the language-specific extractors) and merge
+    JavaScript/TypeScript resolved together by js_extractor.parse_family) and merge
     their results into one dict with keys: modules, classes, functions,
     calls, imports — plain lists of dicts/tuples ready for graph/loader.py
     to write. Each language extractor produces this exact same shape
@@ -37,8 +37,7 @@ def parse_repo(repo_path: str) -> dict:
     """
     results = [
         _parse_python_repo(repo_path),
-        js_extractor.parse_repo(repo_path),
-        ts_extractor.parse_repo(repo_path),
+        js_extractor.parse_family(repo_path),
     ]
     return {
         key: [item for r in results for item in r[key]]
@@ -193,19 +192,70 @@ def _extract_class(node) -> dict:
     name_node = node.child_by_field_name("name")
     body_node = node.child_by_field_name("body")
     methods = []
+    fields = {}
     if body_node is not None:
         for child in body_node.children:
             if child.type == "decorated_definition":
                 child = child.child_by_field_name("definition")
             if child.type == "function_definition":
                 methods.append(_extract_function(child))
-    return {"name": name_node.text.decode(), "functions": methods}
+                if methods[-1]["name"] == "__init__":
+                    fields = _init_fields(child)
+    return {"name": name_node.text.decode(), "functions": methods, "fields": fields}
+
+
+def _init_fields(init_node) -> dict:
+    """Attributes whose class `__init__` makes explicit: `self.x = Foo(...)`,
+    `self.x = param` where param is annotated `param: Foo`, and
+    `self.x: Foo = ...` — the constructor-injection forms."""
+    param_types = {}
+    params = init_node.child_by_field_name("parameters")
+    for p in params.children if params is not None else ():
+        if p.type in ("typed_parameter", "typed_default_parameter"):
+            ident = next((c for c in p.children if c.type == "identifier"), None)
+            type_name = _plain_type(p.child_by_field_name("type"))
+            if ident is not None and type_name:
+                param_types[ident.text.decode()] = type_name
+    fields = {}
+    body = init_node.child_by_field_name("body")
+    for stmt in body.children if body is not None else ():
+        expr = stmt.children[0] if stmt.type == "expression_statement" and stmt.child_count else None
+        if expr is None or expr.type != "assignment":
+            continue
+        left, right = expr.child_by_field_name("left"), expr.child_by_field_name("right")
+        if left is None or left.type != "attribute":
+            continue
+        obj, attr = left.child_by_field_name("object"), left.child_by_field_name("attribute")
+        if obj is None or obj.text.decode() != "self" or attr is None:
+            continue
+        type_name = _plain_type(expr.child_by_field_name("type"))
+        if not type_name and right is not None:
+            if right.type == "identifier":
+                type_name = param_types.get(right.text.decode())
+            elif right.type == "call" and right.child_by_field_name("function").type == "identifier":
+                type_name = right.child_by_field_name("function").text.decode()
+        if type_name:
+            fields[attr.text.decode()] = type_name
+    return fields
+
+
+def _plain_type(node):
+    """A `type` node that is a bare class name; Optional[X], "X" and
+    unions are left alone."""
+    if node is None:
+        return None
+    inner = node.children[0] if node.type == "type" and node.child_count == 1 else node
+    return inner.text.decode() if inner.type == "identifier" else None
 
 
 def _extract_calls(node) -> list:
     """Recursively collect raw call sites within a function/method body,
     without descending into nested function/class definitions (their calls
-    belong to their own scope)."""
+    belong to their own scope).
+
+    Call tuples: ("plain", name), ("self", name), ("field", x, name) for
+    `self.x.name(...)`, and ("attr", obj, name) for `obj.name(...)` where
+    obj is a name or dotted name (`users.get()`, `app.db.users.get()`)."""
     calls = []
 
     def walk(n):
@@ -220,11 +270,26 @@ def _extract_calls(node) -> list:
                 attr_node = fn_node.child_by_field_name("attribute")
                 if obj_node.type == "identifier" and obj_node.text.decode() == "self":
                     calls.append(("self", attr_node.text.decode()))
+                elif (obj_node.type == "attribute" and obj_node.child_by_field_name("object").type == "identifier"
+                      and obj_node.child_by_field_name("object").text.decode() == "self"):
+                    calls.append(("field", obj_node.child_by_field_name("attribute").text.decode(),
+                                  attr_node.text.decode()))
+                elif _is_dotted_identifier(obj_node):
+                    calls.append(("attr", obj_node.text.decode(), attr_node.text.decode()))
         for child in n.children:
             walk(child)
 
     walk(node)
     return calls
+
+
+def _is_dotted_identifier(node) -> bool:
+    if node.type == "identifier":
+        return True
+    if node.type == "attribute":
+        obj = node.child_by_field_name("object")
+        return obj is not None and _is_dotted_identifier(obj)
+    return False
 
 
 def _resolve_relative_module(node, rel_path: str) -> str | None:
@@ -298,13 +363,31 @@ def _extract_import(node, rel_path: str) -> list:
 
 
 def _resolve_imports(raw_files: dict, dotted_to_path: dict) -> list:
+    """`import X` / `from X import y` give an edge to X. When `y` is itself
+    a module (`from app.services import users`, `from . import views`) the
+    edge to that submodule is the real dependency, so it is added too."""
     edges = set()
     for path, file_data in raw_files.items():
-        for stem, _imported_name, _alias in file_data["imports"]:
-            target_path = dotted_to_path.get(stem)
-            if target_path and target_path != path:
-                edges.add((path, target_path))
+        for stem, imported_name, _alias in file_data["imports"]:
+            for target_path in (dotted_to_path.get(stem), _submodule(stem, imported_name, raw_files, dotted_to_path)):
+                if target_path and target_path != path:
+                    edges.add((path, target_path))
     return [{"from": src, "to": dst} for src, dst in edges]
+
+
+def _submodule(stem: str, name, raw_files: dict, dotted_to_path: dict):
+    """The module `from stem import name` imports, when `name` is a
+    submodule rather than something defined in stem's own file."""
+    if not name:
+        return None
+    target = dotted_to_path.get(f"{stem}.{name}")
+    if target is None:
+        return None
+    package = raw_files.get(dotted_to_path.get(stem))
+    if package is not None and (name in {f["name"] for f in package["functions"]}
+                                or name in {c["name"] for c in package["classes"]}):
+        return None
+    return target
 
 
 def _resolve_calls(raw_files: dict, dotted_to_path: dict) -> list:
@@ -312,13 +395,20 @@ def _resolve_calls(raw_files: dict, dotted_to_path: dict) -> list:
 
     Only these deterministic patterns are resolved (no type inference):
       1. `name(...)` matching a function defined at module level in the
-         same module.
+         same module, or a class there (the edge targets its `__init__`).
       2. `self.name(...)` matching a method defined on the enclosing class.
       3. `name(...)` where `name` was brought in via `from X import name`
-         and matches a function in module X, or matches a class in X (in
-         which case the edge targets that class's `__init__`).
-    Anything else (arbitrary `obj.method()`, `module.func()` via plain
-    `import module`) is left unresolved.
+         and matches a function or class in module X — following package
+         re-exports (`from .users import get_user` in X/__init__.py).
+      4. `mod.name(...)` where `mod` is a module bound by `import a.b as
+         mod`, `import a.b` (written `a.b.name(...)`) or `from a import b`
+         with b a submodule: a function or class `name` in that module.
+      5. `Cls.name(...)` where `Cls` is a class (local or imported): its
+         method `name` (static and class methods).
+      6. `self.x.name(...)` where `__init__` makes x's class explicit (see
+         _init_fields): that class's method `name`.
+    Anything else (`obj.method()` on local variables, parameters or
+    attributes of unknown class) is left unresolved.
     """
     module_functions = {
         path: {fn["name"] for fn in fd["functions"]} for path, fd in raw_files.items()
@@ -327,58 +417,111 @@ def _resolve_calls(raw_files: dict, dotted_to_path: dict) -> list:
         path: {cls["name"]: {fn["name"] for fn in cls["functions"]} for cls in fd["classes"]}
         for path, fd in raw_files.items()
     }
+    class_fields = {
+        (path, cls["name"]): cls.get("fields", {}) for path, fd in raw_files.items() for cls in fd["classes"]
+    }
 
-    # local_name -> (target_module_path, original_name), only for
-    # `from X import name [as alias]` where X resolves inside the repo.
-    imported_symbols = {}
+    # Per module: local name -> ("module", path) | ("symbol", path, name),
+    # only for imports that resolve inside the repo.
+    bindings = {}
     for path, file_data in raw_files.items():
-        symbols = {}
+        names = {}
         for stem, imported_name, alias in file_data["imports"]:
+            if alias is None:
+                continue  # wildcard import: no fixed name to track
             if imported_name is None:
-                continue  # plain `import X` — not tracked for call resolution
-            target_path = dotted_to_path.get(stem)
-            if target_path:
-                symbols[alias] = (target_path, imported_name)
-        imported_symbols[path] = symbols
+                target = dotted_to_path.get(stem)
+                if target:
+                    names[alias] = ("module", target)
+                if alias == stem:  # plain `import a.b.c` also binds a and a.b
+                    parts = stem.split(".")
+                    for i in range(1, len(parts)):
+                        prefix_target = dotted_to_path.get(".".join(parts[:i]))
+                        if prefix_target:
+                            names.setdefault(".".join(parts[:i]), ("module", prefix_target))
+                continue
+            submodule = _submodule(stem, imported_name, raw_files, dotted_to_path)
+            if submodule:
+                names[alias] = ("module", submodule)
+            elif dotted_to_path.get(stem):
+                names[alias] = ("symbol", dotted_to_path[stem], imported_name)
+        bindings[path] = names
+
+    def lookup(path, name, depth=0):
+        """What `name` refers to in module `path`: ("function", path, name)
+        | ("class", path, name) | ("module", path) | None."""
+        if depth > 5 or path not in raw_files:
+            return None
+        if name in module_functions[path]:
+            return ("function", path, name)
+        if name in module_classes[path]:
+            return ("class", path, name)
+        bound = bindings[path].get(name)
+        if bound is None:
+            return None
+        return bound if bound[0] == "module" else lookup(bound[1], bound[2], depth + 1)
+
+    def lookup_dotted(path, dotted):
+        """`a.b.c` as written in a call: a bound name, or a module walked
+        attribute by attribute from its first part."""
+        found = lookup(path, dotted)
+        if found or "." not in dotted:
+            return found
+        head, *rest = dotted.split(".")
+        found = lookup(path, head)
+        for part in rest:
+            if not found or found[0] != "module":
+                return None
+            submodule = dotted_to_path.get(f"{_dotted_name(found[1]).removesuffix('.__init__')}.{part}")
+            found = lookup(found[1], part) or (("module", submodule) if submodule else None)
+        return found
+
+    def callable_key(found):
+        if found is None:
+            return None
+        if found[0] == "function":
+            return (found[1], None, found[2])
+        if found[0] == "class" and "__init__" in module_classes[found[1]][found[2]]:
+            return (found[1], found[2], "__init__")
+        return None
+
+    def resolve(caller_module, caller_class, call):
+        kind = call[0]
+        if kind == "self":
+            if caller_class and call[1] in module_classes[caller_module].get(caller_class, ()):
+                return (caller_module, caller_class, call[1])
+            return None
+        if kind == "plain":
+            return callable_key(lookup(caller_module, call[1]))
+        obj, name = call[1], call[2]
+        if kind == "field":
+            obj = class_fields.get((caller_module, caller_class), {}).get(obj) if caller_class else None
+            found = lookup(caller_module, obj) if obj else None
+            if found and found[0] == "class" and name in module_classes[found[1]][found[2]]:
+                return (found[1], found[2], name)
+            return None
+        found = lookup_dotted(caller_module, obj)
+        if found is None:
+            return None
+        if found[0] == "module":
+            return callable_key(lookup(found[1], name))
+        if found[0] == "class" and name in module_classes[found[1]][found[2]]:
+            return (found[1], found[2], name)
+        return None
 
     calls = set()
-
-    def resolve_plain(caller_module: str, name: str):
-        if name in module_functions.get(caller_module, ()):
-            return (caller_module, None, name)
-        target = imported_symbols.get(caller_module, {}).get(name)
-        if target:
-            target_path, orig_name = target
-            if orig_name in module_functions.get(target_path, ()):
-                return (target_path, None, orig_name)
-            if orig_name in module_classes.get(target_path, {}):
-                if "__init__" in module_classes[target_path][orig_name]:
-                    return (target_path, orig_name, "__init__")
-        return None
-
-    def resolve_self(caller_module: str, caller_class: str, name: str):
-        if caller_class and name in module_classes.get(caller_module, {}).get(caller_class, ()):
-            return (caller_module, caller_class, name)
-        return None
-
     for path, file_data in raw_files.items():
         for fn in file_data["functions"]:
-            caller_key = (path, None, fn["name"])
-            for kind, callee_name in fn["calls"]:
-                if kind == "plain":
-                    callee_key = resolve_plain(path, callee_name)
-                    if callee_key:
-                        calls.add((caller_key, callee_key))
+            for call in fn["calls"]:
+                callee = resolve(path, None, call)
+                if callee:
+                    calls.add(((path, None, fn["name"]), callee))
         for cls in file_data["classes"]:
             for fn in cls["functions"]:
-                caller_key = (path, cls["name"], fn["name"])
-                for kind, callee_name in fn["calls"]:
-                    if kind == "plain":
-                        callee_key = resolve_plain(path, callee_name)
-                    else:
-                        callee_key = resolve_self(path, cls["name"], callee_name)
-                    if callee_key:
-                        calls.add((caller_key, callee_key))
+                for call in fn["calls"]:
+                    callee = resolve(path, cls["name"], call)
+                    if callee:
+                        calls.add(((path, cls["name"], fn["name"]), callee))
 
     return [
         {

@@ -255,40 +255,139 @@ def score(runs: list) -> dict:
     return {"overall": prf(tp, fp, fn), "per_rule": {k: prf(**v) for k, v in sorted(per_rule.items())}}
 
 
-# ------------------------------------------------------------------ part A2: known unsupported call forms
+# ------------------------------------------------------------------ part A2: indirect call forms
 
-HARD_CASES = {
-    "Python": lambda e, f, k: (
-        f"controllers/{e}_controller.py",
-        f"\n\nimport repositories.{f}_repository as repo_{k}\n\n\ndef via_attribute_{k}(i):\n    return repo_{k}.find_{f}(i)\n",
-        f"repositories/{f}_repository.py", f"via_attribute_{k}", f"find_{f}"),
-    "JavaScript (CommonJS)": lambda e, f, k: (
-        f"controllers/{e}.controller.js",
-        f"\nconst repo{k} = require('../repositories/{f}.repository');\nfunction viaAttribute{k}(i) {{ return repo{k}.find{cap(f)}(i); }}\n",
-        f"repositories/{f}.repository.js", f"viaAttribute{k}", f"find{cap(f)}"),
-    "TypeScript (ES modules)": lambda e, f, k: (
-        f"controllers/{e}.controller.ts",
-        f"\nimport * as repo{k} from '../repositories/{f}.repository';\nexport function viaAttribute{k}(i: string) {{ return repo{k}.find{cap(f)}(i); }}\n",
-        f"repositories/{f}.repository.ts", f"viaAttribute{k}", f"find{cap(f)}"),
+INDIRECT_PAIRS = [("users", "orders"), ("products", "invoices"), ("carts", "reviews"), ("payments", "shipments")]
+
+
+def indirect_python(e, f, k):
+    """(appended code per file, expected keys) for the k-th indirect form."""
+    F, ctrl, repo = cap(f), f"controllers/{e}_controller.py", f"repositories/{f}_repository.py"
+    imp = ("no-controller-imports-db", ctrl, "", repo, "")
+    if k == 0:  # module alias
+        return {ctrl: f"\n\nimport repositories.{f}_repository as repo_{k}\n\n\ndef via_alias_{k}(i):\n    return repo_{k}.find_{f}(i)\n"}, \
+            [imp, ("no-controller-to-db", ctrl, f"via_alias_{k}", repo, f"find_{f}")]
+    if k == 1:  # submodule imported from its package (which also runs, so imports, the package's __init__.py)
+        return {ctrl: f"\n\nfrom repositories import {f}_repository\n\n\ndef via_submodule_{k}(i):\n    return {f}_repository.find_{f}(i)\n",
+                "repositories/__init__.py": ""}, \
+            [imp, ("no-controller-imports-db", ctrl, "", "repositories/__init__.py", ""),
+             ("no-controller-to-db", ctrl, f"via_submodule_{k}", repo, f"find_{f}")]
+    if k == 2:  # constructor injection with a type annotation
+        return {repo: f"\n\nclass {F}Store:\n    def find(self, i):\n        return i\n",
+                ctrl: (f"\n\nfrom repositories.{f}_repository import {F}Store\n\n\nclass Handler{k}:\n"
+                       f"    def __init__(self, store: {F}Store):\n        self.store = store\n\n"
+                       f"    def handle(self, i):\n        return self.store.find(i)\n")}, \
+            [imp, ("no-controller-to-db", ctrl, "handle", repo, "find")]
+    # package re-export: the import lands on the package, the call on the module
+    return {"repositories/__init__.py": f"from .{f}_repository import find_{f}\n",
+            ctrl: f"\n\nfrom repositories import find_{f}\n\n\ndef via_package_{k}(i):\n    return find_{f}(i)\n"}, \
+        [("no-controller-imports-db", ctrl, "", "repositories/__init__.py", ""),
+         ("no-controller-to-db", ctrl, f"via_package_{k}", repo, f"find_{f}")]
+
+
+def indirect_decoys_python(e, f):
+    """Receivers whose class is unknown: a parameter, an untyped attribute,
+    a local object. Nothing may be flagged."""
+    return {f"controllers/{e}_controller.py": (
+        f"\n\ndef via_param(repo, i):\n    return repo.find_{f}(i)\n\n\n"
+        f"class Untyped:\n    def __init__(self, store):\n        self.store = store\n\n"
+        f"    def handle(self, i):\n        return self.store.find_{f}(i)\n\n\n"
+        f"def via_local(i):\n    local = Untyped(None)\n    return local.find_{f}(i)\n")}
+
+
+def indirect_js(e, f, k):
+    F, ctrl, repo = cap(f), f"controllers/{e}.controller.js", f"repositories/{f}.repository.js"
+    imp = ("no-controller-imports-db", ctrl, "", repo, "")
+    if k == 0:  # whole module object
+        return {ctrl: f"\nconst repo{k} = require('../repositories/{f}.repository');\nfunction viaModule{k}(i) {{ return repo{k}.find{F}(i); }}\n"}, \
+            [imp, ("no-controller-to-db", ctrl, f"viaModule{k}", repo, f"find{F}")]
+    if k == 1:  # barrel re-export, node-express-boilerplate style
+        return {"repositories/index.js": f"module.exports.{f}Repository = require('./{f}.repository');\n",
+                ctrl: f"\nconst {{ {f}Repository }} = require('../repositories');\nfunction viaBarrel{k}(i) {{ return {f}Repository.find{F}(i); }}\n"}, \
+            [("no-controller-imports-db", ctrl, "", "repositories/index.js", ""),
+             ("no-controller-to-db", ctrl, f"viaBarrel{k}", repo, f"find{F}")]
+    if k == 2:  # field assigned a constructed instance
+        return {repo: f"\nclass {F}Store {{ find(id) {{ return id; }} }}\nmodule.exports.{F}Store = {F}Store;\n",
+                ctrl: (f"\nconst {{ {F}Store }} = require('../repositories/{f}.repository');\n"
+                       f"class Handler{k} {{ constructor() {{ this.store = new {F}Store(); }} handle(i) {{ return this.store.find(i); }} }}\n")}, \
+            [imp, ("no-controller-to-db", ctrl, "handle", repo, "find")]
+    # member require
+    return {ctrl: f"\nconst find{F}Member{k} = require('../repositories/{f}.repository').find{F};\n"
+                  f"function viaMember{k}(i) {{ return find{F}Member{k}(i); }}\n"}, \
+        [imp, ("no-controller-to-db", ctrl, f"viaMember{k}", repo, f"find{F}")]
+
+
+def indirect_decoys_js(e, f):
+    F = cap(f)
+    return {f"controllers/{e}.controller.js": (
+        f"\nfunction viaParam(repo, i) {{ return repo.find{F}(i); }}\n"
+        f"class Untyped {{ constructor(store) {{ this.store = store; }} handle(i) {{ return this.store.find{F}(i); }} }}\n"
+        f"function viaLocal(i) {{ const local = {{ find{F}: (x) => x }}; return local.find{F}(i); }}\n")}
+
+
+def indirect_ts(e, f, k):
+    F, ctrl, repo = cap(f), f"controllers/{e}.controller.ts", f"repositories/{f}.repository.ts"
+    imp = ("no-controller-imports-db", ctrl, "", repo, "")
+    if k == 0:  # namespace import
+        return {ctrl: f"\nimport * as repo{k} from '../repositories/{f}.repository';\nexport function viaNamespace{k}(i: string) {{ return repo{k}.find{F}(i); }}\n"}, \
+            [imp, ("no-controller-to-db", ctrl, f"viaNamespace{k}", repo, f"find{F}")]
+    if k == 1:  # tsconfig path alias
+        return {ctrl: f"\nimport {{ find{F} as find{F}Alias{k} }} from '@repo/{f}.repository';\nexport function viaAlias{k}(i: string) {{ return find{F}Alias{k}(i); }}\n"}, \
+            [imp, ("no-controller-to-db", ctrl, f"viaAlias{k}", repo, f"find{F}")]
+    if k == 2:  # NestJS-style constructor injection
+        return {repo: f"\nexport class {F}Store {{ find(id: string) {{ return id; }} }}\n",
+                ctrl: (f"\nimport {{ {F}Store }} from '../repositories/{f}.repository';\n"
+                       f"export class Handler{k} {{ constructor(private readonly store: {F}Store) {{}} handle(i: string) {{ return this.store.find(i); }} }}\n")}, \
+            [imp, ("no-controller-to-db", ctrl, "handle", repo, "find")]
+    return {"repositories/index.ts": f"export * from './{f}.repository';\n",
+            ctrl: f"\nimport {{ find{F} as find{F}Barrel{k} }} from '../repositories';\nexport function viaBarrel{k}(i: string) {{ return find{F}Barrel{k}(i); }}\n"}, \
+        [("no-controller-imports-db", ctrl, "", "repositories/index.ts", ""),
+         ("no-controller-to-db", ctrl, f"viaBarrel{k}", repo, f"find{F}")]
+
+
+def indirect_decoys_ts(e, f):
+    F = cap(f)
+    return {f"controllers/{e}.controller.ts": (
+        f"\ninterface Store {{ find{F}(id: string): string; }}\n"
+        f"export class ViaInterface {{ constructor(private readonly store: Store) {{}} handle(i: string) {{ return this.store.find{F}(i); }} }}\n"
+        f"export function viaParam(repo: any, i: string) {{ return repo.find{F}(i); }}\n"
+        f"export function viaLocal(i: string) {{ const local = {{ find{F}: (x: string) => x }}; return local.find{F}(i); }}\n")}
+
+
+INDIRECT = {
+    "Python": (indirect_python, indirect_decoys_python, {}),
+    "JavaScript (CommonJS)": (indirect_js, indirect_decoys_js, {}),
+    "TypeScript (ES modules)": (indirect_ts, indirect_decoys_ts,
+                                {"tsconfig.json": '{\n  // path aliases\n  "compilerOptions": {"baseUrl": ".", "paths": {"@repo/*": ["repositories/*"]}},\n}\n'}),
+}
+INDIRECT_FORMS = {
+    "Python": ["module alias (`import x as m; m.f()`)", "submodule import (`from pkg import mod; mod.f()`)",
+               "constructor injection (`def __init__(self, s: Store)`)", "package re-export (`from pkg import f`)"],
+    "JavaScript (CommonJS)": ["module object (`const m = require(...); m.f()`)", "barrel re-export (`module.exports.x = require(...)`)",
+                              "constructed field (`this.s = new Store()`)", "member require (`require(...).f`)"],
+    "TypeScript (ES modules)": ["namespace import (`import * as m`)", "tsconfig path alias (`@repo/...`)",
+                                "constructor injection (`private readonly s: Store`)", "barrel (`export * from`)"],
 }
 
 
-def run_hard_cases(lang) -> dict:
-    """Controller -> repository dependencies written as attribute calls
-    (module.function()), which the resolvers deliberately don't follow. The
-    imports rule should still catch every one; the calls rule is expected to
-    miss them — measured, not assumed."""
-    root = tempfile.mkdtemp(prefix="repomind_evalhard_")
+def run_indirect(lang) -> dict:
+    """Controller -> repository dependencies written through indirect forms
+    (one per form, per language), plus receivers of unknown class that must
+    not be resolved. Scored on both rules."""
+    root = tempfile.mkdtemp(prefix="repomind_evalindirect_")
+    make, decoys, extra = INDIRECT[lang.name]
     try:
-        files = {}
+        files = dict(extra)
         for e in ENTITIES:
             files.update(lang.files(e))
-        expected_imports, expected_calls = set(), set()
-        for k, (e, f) in enumerate([("users", "orders"), ("products", "invoices"), ("carts", "reviews")]):
-            path, code, target, caller_fn, callee_fn = HARD_CASES[lang.name](e, f, k)
-            files[path] += code
-            expected_imports.add(("no-controller-imports-db", path, "", target, ""))
-            expected_calls.add(("no-controller-to-db", path, caller_fn, target, callee_fn))
+        expected = set()
+        for k, (e, f) in enumerate(INDIRECT_PAIRS):
+            appended, keys = make(e, f, k)
+            for path, code in appended.items():
+                files[path] = files.get(path, "") + code
+            expected.update(keys)
+        for path, code in decoys("shipments", "users").items():
+            files[path] = files.get(path, "") + code
         for rel, text in files.items():
             full = os.path.join(root, *rel.split("/"))
             os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -297,9 +396,14 @@ def run_hard_cases(lang) -> dict:
         data = ast_extractor.parse_repo(root)
         apply_layers(data, RULES)
         predicted = {_short_key(v) for v in evaluate(data, RULES)["violations"]}
-        return {"imports_rule_recall": len(predicted & expected_imports) / len(expected_imports),
-                "calls_rule_recall": len(predicted & expected_calls) / len(expected_calls),
-                "false_positives": len(predicted - expected_imports - expected_calls)}
+        result = {}
+        for rule in ("no-controller-imports-db", "no-controller-to-db"):
+            exp = {key for key in expected if key[0] == rule}
+            pred = {key for key in predicted if key[0] == rule}
+            result[rule] = prf(len(pred & exp), len(pred - exp), len(exp - pred))
+        result["missed"] = sorted(map(list, expected - predicted))
+        result["unexpected"] = sorted(map(list, predicted - expected))
+        return result
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
@@ -378,8 +482,8 @@ def main():
         synthetic[lang.name] = score(runs)
         parity += [r["parity"] for r in runs if r["parity"] is not None]
         print(f"{lang.name}: {synthetic[lang.name]['overall']}")
-    hard = {lang.name: run_hard_cases(lang) for lang in (Python(), JavaScript(), TypeScript())}
-    print("hard cases:", hard)
+    indirect = {lang.name: run_indirect(lang) for lang in (Python(), JavaScript(), TypeScript())}
+    print("indirect forms:", indirect)
     all_runs_score = {"overall": {}}
     tp = sum(s["overall"]["tp"] for s in synthetic.values())
     fp = sum(s["overall"]["fp"] for s in synthetic.values())
@@ -418,14 +522,20 @@ def main():
     md.append(table(["Rule", "TP", "FP", "FN", "Precision", "Recall", "F1"],
                     [[rule] + list(prf(**st).values())[:3] + [prf(**st)["precision"], prf(**st)["recall"], prf(**st)["f1"]]
                      for rule, st in sorted(per_rule_total.items())]))
-    md += ["", "### A2. Known unsupported call form: calls through a module attribute", "",
-           "Three controller→repository dependencies per language written as `module.function()` (Python "
-           "`import x as m; m.f()`, CommonJS `const m = require(...); m.f()`, ES `import * as m ...; m.f()`). The call "
-           "resolvers deliberately don't guess these targets.", "",
-           table(["Language", "Imports-rule recall", "Calls-rule recall", "False positives"],
-                 [[name, h["imports_rule_recall"], h["calls_rule_recall"], h["false_positives"]] for name, h in hard.items()]),
-           "", "The dependency is still reported (by the imports rule) in every case; only the function-level call "
-           "edge is missing, which affects the calls rule and call-level answers in Q&A."]
+    md += ["", "### A2. Indirect dependency forms", "",
+           "One controller→repository dependency per form and language, written the way real code reaches another "
+           "module indirectly, plus receivers whose class is unknown (a parameter, an untyped or interface-typed "
+           "field, a local object with a same-named method) that must not be resolved. Scored on the imports rule "
+           "and the calls rule.", ""]
+    rows = []
+    for name, res in indirect.items():
+        imp, calls = res["no-controller-imports-db"], res["no-controller-to-db"]
+        rows.append([name, "; ".join(INDIRECT_FORMS[name]), imp["recall"], calls["recall"],
+                     imp["fp"] + calls["fp"]])
+    md.append(table(["Language", "Forms", "Imports-rule recall", "Calls-rule recall", "False positives"], rows))
+    for name, res in indirect.items():
+        if res["missed"] or res["unexpected"]:
+            md += ["", f"{name} — missed: {res['missed']}; unexpected: {res['unexpected']}"]
     md += ["", "## B. Real repositories with injected violations", "",
            "Each repository is first analyzed as-is; that baseline was reviewed by hand (by the author) and is excluded "
            "from scoring. Up to 3 module imports per rule type are then appended to real files, and the repository "
@@ -447,12 +557,13 @@ def main():
            (f"Compared on {len(parity)} synthetic project(s) loaded into Neo4j: "
             f"{'identical results' if parity and all(parity) else 'MISMATCH'}." if parity else "_Neo4j not reachable; skipped._"),
            "", "## Limits", "",
-           "- Synthetic projects only use constructs the resolvers support (from-imports, named ES imports, "
-           "destructured `require`). Calls through `module.function()` attribute access or default imports are not "
-           "resolved, so the calls rule can miss them in real code; the imports rules still catch the dependency.",
+           "- Calls are resolved only where the target is explicit in the code (imports, re-exports, aliases, "
+           "declared or constructed field types). Calls on values of unknown class — parameters, untyped fields, "
+           "factory results — are not resolved, so the calls rule can miss them; the imports rules still catch the "
+           "dependency whenever the module is imported.",
            "- Layers come from folder and file-name patterns; a repository whose layout doesn't match the patterns "
            "needs its own `layers` section, otherwise its modules are untagged and not judged."]
-    data = {"synthetic": synthetic, "all": all_runs_score, "hard_cases": hard, "real": real, "parity": parity}
+    data = {"synthetic": synthetic, "all": all_runs_score, "indirect": indirect, "real": real, "parity": parity}
     print(write_report("drift", "\n".join(md), data))
 
 

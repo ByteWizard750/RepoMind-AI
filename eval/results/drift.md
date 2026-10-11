@@ -23,17 +23,15 @@ Per rule, all languages:
 | no-db-imports-service | 30 | 0 | 0 | 1.0 | 1.0 | 1.0 |
 | no-service-imports-controller | 30 | 0 | 0 | 1.0 | 1.0 | 1.0 |
 
-### A2. Known unsupported call form: calls through a module attribute
+### A2. Indirect dependency forms
 
-Three controller→repository dependencies per language written as `module.function()` (Python `import x as m; m.f()`, CommonJS `const m = require(...); m.f()`, ES `import * as m ...; m.f()`). The call resolvers deliberately don't guess these targets.
+One controller→repository dependency per form and language, written the way real code reaches another module indirectly, plus receivers whose class is unknown (a parameter, an untyped or interface-typed field, a local object with a same-named method) that must not be resolved. Scored on the imports rule and the calls rule.
 
-| Language | Imports-rule recall | Calls-rule recall | False positives |
-|---|---|---|---|
-| Python | 1.0 | 0.0 | 0 |
-| JavaScript (CommonJS) | 1.0 | 0.0 | 0 |
-| TypeScript (ES modules) | 1.0 | 0.0 | 0 |
-
-The dependency is still reported (by the imports rule) in every case; only the function-level call edge is missing, which affects the calls rule and call-level answers in Q&A.
+| Language | Forms | Imports-rule recall | Calls-rule recall | False positives |
+|---|---|---|---|---|
+| Python | module alias (`import x as m; m.f()`); submodule import (`from pkg import mod; mod.f()`); constructor injection (`def __init__(self, s: Store)`); package re-export (`from pkg import f`) | 1.0 | 1.0 | 0 |
+| JavaScript (CommonJS) | module object (`const m = require(...); m.f()`); barrel re-export (`module.exports.x = require(...)`); constructed field (`this.s = new Store()`); member require (`require(...).f`) | 1.0 | 1.0 | 0 |
+| TypeScript (ES modules) | namespace import (`import * as m`); tsconfig path alias (`@repo/...`); constructor injection (`private readonly s: Store`); barrel (`export * from`) | 1.0 | 1.0 | 0 |
 
 ## B. Real repositories with injected violations
 
@@ -51,7 +49,7 @@ Compared on 3 synthetic project(s) loaded into Neo4j: identical results.
 
 ## Limits
 
-- Synthetic projects only use constructs the resolvers support (from-imports, named ES imports, destructured `require`). Calls through `module.function()` attribute access or default imports are not resolved, so the calls rule can miss them in real code; the imports rules still catch the dependency.
+- Calls are resolved only where the target is explicit in the code (imports, re-exports, aliases, declared or constructed field types). Calls on values of unknown class — parameters, untyped fields, factory results — are not resolved, so the calls rule can miss them; the imports rules still catch the dependency whenever the module is imported.
 - Layers come from folder and file-name patterns; a repository whose layout doesn't match the patterns needs its own `layers` section, otherwise its modules are untagged and not judged.
 
-_Generated 2026-10-05 10:38 UTC by `eval/eval_drift.py`._
+_Generated 2026-10-05 14:49 UTC by `eval/eval_drift.py`._

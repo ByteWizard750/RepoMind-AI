@@ -1,18 +1,9 @@
 {
   "routing": {
     "n": 38,
-    "accuracy": 0.974,
-    "exact": 0.816,
-    "misses": [
-      {
-        "question": "What was the reasoning behind adding Docker?",
-        "expected": "rationale",
-        "routed": [
-          "structural"
-        ],
-        "hit": false
-      }
-    ],
+    "accuracy": 1.0,
+    "exact": 0.842,
+    "misses": [],
     "rows": [
       {
         "question": "What does src/app.py do?",
@@ -262,9 +253,9 @@
         "question": "What was the reasoning behind adding Docker?",
         "expected": "rationale",
         "routed": [
-          "structural"
+          "rationale"
         ],
-        "hit": false
+        "hit": true
       },
       {
         "question": "Why does the project use joi instead of @hapi/joi?",
@@ -326,5 +317,313 @@
       }
     ]
   },
-  "live": []
+  "live": [
+    {
+      "target": "C:\\Users\\komma\\AppData\\Local\\Temp\\repomind_evalqa__k44sm01\\repo",
+      "evidence": [
+        {
+          "question": "Which modules import `cache.py`?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "cache.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which modules does `service.py` import?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "service.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which functions call `process_order` (defined in `service.py`)?",
+          "intent": "structural",
+          "tool": "get_function_details",
+          "args": {
+            "name": "process_order",
+            "module_path": "service.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "tool": "get_contributors",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "How many commits changed `controller.py`?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "controller.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Who last changed `controller.py`, and in which commit?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "controller.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "When was `helpers.py` first added?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "helpers.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Why was redis adopted?",
+          "intent": "rationale",
+          "tool": "list_decisions",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        }
+      ],
+      "results": []
+    },
+    {
+      "target": "https://github.com/hagopj13/node-express-boilerplate",
+      "evidence": [
+        {
+          "question": "Which modules import `src/config/config.js`?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "src/config/config.js"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which modules does `tests/integration/auth.test.js` import?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "tests/integration/auth.test.js"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which functions call `getUserById` (defined in `src/services/user.service.js`)?",
+          "intent": "structural",
+          "tool": "get_function_details",
+          "args": {
+            "name": "getUserById",
+            "module_path": "src/services/user.service.js"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "tool": "get_contributors",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "How many commits changed `tests/integration/auth.test.js`?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "tests/integration/auth.test.js"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Who last changed `tests/integration/auth.test.js`, and in which commit?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "tests/integration/auth.test.js"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "When was `tests/unit/models/plugins/paginate.plugin.test.js` first added?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "tests/unit/models/plugins/paginate.plugin.test.js"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Why was dotenv adopted?",
+          "intent": "rationale",
+          "tool": "list_decisions",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        }
+      ],
+      "results": []
+    },
+    {
+      "target": "https://github.com/nsidnev/fastapi-realworld-example-app",
+      "evidence": [
+        {
+          "question": "Which modules import `app/models/domain/users.py`?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "app/models/domain/users.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which modules does `app/api/dependencies/comments.py` import?",
+          "intent": "structural",
+          "tool": "get_module_details",
+          "args": {
+            "path": "app/api/dependencies/comments.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Which functions call `__init__` (defined in `app/db/repositories/articles.py`)?",
+          "intent": "structural",
+          "tool": "get_function_details",
+          "args": {
+            "name": "__init__",
+            "module_path": "app/db/repositories/articles.py"
+          },
+          "truncated": false,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "Are there any architecture violations? List the modules that contain them.",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": true,
+          "recall": 1.0,
+          "complete": true
+        },
+        {
+          "question": "What is the current architecture health score?",
+          "intent": "architectural",
+          "tool": "get_architecture_health",
+          "args": {},
+          "truncated": true,
+          "complete": true
+        },
+        {
+          "question": "Who has made the most commits?",
+          "intent": "historical",
+          "tool": "get_contributors",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "How many commits changed `app/core/config.py`?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "app/core/config.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Who last changed `app/core/config.py`, and in which commit?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "app/core/config.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "When was `app/core/settings/__init__.py` first added?",
+          "intent": "historical",
+          "tool": "get_file_history",
+          "args": {
+            "path": "app/core/settings/__init__.py"
+          },
+          "truncated": false,
+          "complete": true
+        },
+        {
+          "question": "Why was attrs adopted?",
+          "intent": "rationale",
+          "tool": "list_decisions",
+          "args": {},
+          "truncated": false,
+          "complete": true
+        }
+      ],
+      "results": []
+    }
+  ]
 }

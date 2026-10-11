@@ -5,7 +5,8 @@ Usage: python server.py   (serves on http://localhost:8000)
 POST /analyze does all deterministic work (clone, parse, layers, graph,
 rules, diagram, history and snapshots); the page then loads the generative
 sections lazily from their own endpoints, each tied to the analysis_id so a
-newer analysis can't be mixed in.
+newer analysis can't be mixed in. The code review (POST /review) runs only
+when asked, and raises GitHub issues only through POST /review/issues.
 """
 import time
 from collections import Counter
@@ -22,6 +23,7 @@ import llm
 import workspace
 from agents.adr_graph import decisions_for, reconstruct, store_decisions
 from agents.drift_graph import explain_violations
+from agents.review_graph import review_changes
 from docs_generator import generate_documentation
 from export_diagram import build_folder_mermaid, build_mermaid, fetch_imports, fetch_modules
 from graph import loader
@@ -29,6 +31,8 @@ from graph.history_loader import graph_at_snapshot, load_history
 from history import commit_meta, contributors, introduced_at, mine_commits
 from layers import apply_layers
 from parser import ast_extractor
+from review import github_issues
+from review.diff import file_at
 from qa_engine import answer_question, attach_analysis, clear_repo_context, set_repo_context
 from rules.config import MAX_RULES_YAML_CHARS, RulesError, default_rules_text, load_rules_config
 from rules.evaluate import evaluate, format_violation, violation_key
@@ -37,6 +41,7 @@ from rules.scoring import compute_health, compute_health_normalized
 from snapshots import build_snapshots, import_intervals, module_presence, source_change_filter
 
 TIMELINE_COMMITS = 15
+REVIEWS_KEPT = 5
 
 
 @asynccontextmanager
@@ -56,6 +61,18 @@ class AnalyzeRequest(BaseModel):
 
 class AnalysisRef(BaseModel):
     analysis_id: str = Field(min_length=1, max_length=64)
+
+
+class ReviewRequest(BaseModel):
+    analysis_id: str = Field(min_length=1, max_length=64)
+    commits: Optional[int] = Field(None, ge=1, le=50)
+    base: Optional[str] = Field(None, pattern=r"^[0-9a-fA-F]{4,40}$")
+
+
+class RaiseRequest(BaseModel):
+    analysis_id: str = Field(min_length=1, max_length=64)
+    review_id: str = Field(min_length=1, max_length=64)
+    fingerprints: list[str] = Field(default_factory=list, max_length=50)  # empty: only close resolved issues
 
 
 class ChatTurn(BaseModel):
@@ -279,6 +296,48 @@ def history_snapshot(idx: int, analysis_id: str):
                 "modules": len(graph["modules"]), "imports": len(graph["imports"]),
                 "mermaid_diagram": build_folder_mermaid(graph["modules"], graph["imports"]),
             }
+    except workspace.StaleAnalysis as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+def _github(ws, review: dict, apply_changes: bool, selected=None) -> dict:
+    return github_issues.sync(review, ws.repo_url, lambda path: file_at(ws.path, review["range"]["head"], path),
+                              apply_changes=apply_changes, selected=selected)
+
+
+@app.post("/review")
+def review(req: ReviewRequest):
+    """Reviews the last `commits` commits (or base..HEAD) of the analyzed
+    repository and previews which findings would become GitHub issues.
+    Nothing is written to GitHub here."""
+    try:
+        with workspace.use(req.analysis_id) as ws:
+            r = ws.results
+            result = review_changes(ws.path, ws.repo_url, r["rules"], head=ws.head_sha, base=req.base,
+                                    commits=req.commits, head_data=r["data"])
+            reviews = r.setdefault("reviews", {})
+            reviews[result["review_id"]] = result
+            for old in list(reviews)[:-REVIEWS_KEPT]:
+                reviews.pop(old)
+            return {**result, "github": _github(ws, result, apply_changes=False)}
+    except workspace.StaleAnalysis as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.post("/review/issues")
+def review_issues(req: RaiseRequest):
+    """The one-click raise: creates issues for the chosen findings of a
+    stored review (and closes RepoMind issues that review shows resolved)."""
+    try:
+        with workspace.use(req.analysis_id) as ws:
+            stored = ws.results.get("reviews", {}).get(req.review_id)
+            if stored is None:
+                raise HTTPException(status_code=404, detail="That review isn't available any more; run it again.")
+            known = {f["fingerprint"] for f in stored["findings"]}
+            unknown = [fp for fp in req.fingerprints if fp not in known]
+            if unknown:
+                raise HTTPException(status_code=400, detail="Some findings aren't part of this review.")
+            return _github(ws, stored, apply_changes=True, selected=set(req.fingerprints))
     except workspace.StaleAnalysis as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 

@@ -15,7 +15,7 @@ import time
 
 from history import git
 from layers import apply_layers
-from parser import ast_extractor
+from parser import ast_extractor, tsconfig
 from rules.evaluate import evaluate, format_violation, violation_key
 from rules.scoring import compute_health, compute_health_normalized
 
@@ -67,11 +67,13 @@ def _safe_relative(path: str) -> bool:
 
 def _wanted(path: str) -> bool:
     name = path.rsplit("/", 1)[-1]
-    return name.endswith(SOURCE_EXTENSIONS)
+    # tsconfig/jsconfig carry the path aliases the JS/TS resolver reads.
+    return name.endswith(SOURCE_EXTENSIONS) or tsconfig.is_config_file(name)
 
 
 def materialize(repo_path: str, sha: str, dest: str) -> int:
-    """Writes the source files of commit `sha` into dest. Returns the count."""
+    """Writes the source files (and TS/JS configs) of commit `sha` into
+    dest. Returns the count."""
     listing = git(repo_path, "ls-tree", "-r", "-l", "-z", sha, binary=True).decode("utf-8", errors="replace")
     entries = []
     for line in listing.split("\0"):
