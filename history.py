@@ -88,13 +88,30 @@ def parse_log(raw: str) -> list:
     return commits
 
 
-def mine_commits(repo_path: str, max_commits: int = HISTORY_MAX_COMMITS) -> dict:
+def shallow_boundary(repo_path: str) -> set:
+    """Commits where a shallow clone's history was cut off. git shows them
+    as if they added every file, so they are no evidence of anything."""
+    path = git(repo_path, "rev-parse", "--git-path", "shallow").strip()
+    if not os.path.isabs(path):
+        path = os.path.join(repo_path, path)
+    try:
+        with open(path, encoding="ascii") as f:
+            return {line.strip() for line in f if line.strip()}
+    except OSError:
+        return set()
+
+
+def mine_commits(repo_path: str, max_commits: int = HISTORY_MAX_COMMITS, subdir: str = "") -> dict:
     """Returns {"commits": [...] oldest first, each with an "idx" position,
-    "truncated": whether older history was cut off by max_commits}."""
+    "truncated": whether older history was cut off (by max_commits, or by a
+    shallow clone)}. subdir limits it to commits that touched that folder."""
     raw = git(repo_path, "log", "--no-merges", "-M", "--numstat", "-z", "--topo-order",
-              f"--format={_FORMAT}", "-n", str(max_commits + 1))
+              f"--format={_FORMAT}", "-n", str(max_commits + 1), *(["--", subdir] if subdir else []))
     commits = parse_log(raw)
-    truncated = len(commits) > max_commits
+    boundary = shallow_boundary(repo_path)
+    if boundary:
+        commits = [c for c in commits if c["hash"] not in boundary]
+    truncated = len(commits) > max_commits or bool(boundary)
     commits = commits[:max_commits]
     commits.reverse()
     for idx, c in enumerate(commits):

@@ -68,19 +68,25 @@ def clear_repo_context() -> None:
         _context.update(repo_url=None, sources={}, rules=None, analysis_id=None)
 
 
-def set_repo_context(repo_url: str, repo_path: str, module_paths: list, rules: dict = None) -> None:
+def set_repo_context(repo_url: str, repo_path: str, module_paths: list, rules: dict = None,
+                     contents: dict = None) -> None:
     """Keeps the parsed files' text in memory so the clone directory can be
-    deleted exactly as before; the graph itself already lives in Neo4j."""
+    deleted exactly as before; the graph itself already lives in Neo4j.
+    contents ({path: bytes}, already read) is used instead of the disk."""
     sources = {}
     total = 0
     for rel_path in sorted(module_paths):
         if total >= MAX_TOTAL_SOURCE_CHARS:
             break
-        try:
-            with open(os.path.join(repo_path, rel_path), "r", encoding="utf-8", errors="replace") as f:
-                text = f.read(MAX_SOURCE_CHARS_PER_FILE)
-        except OSError:
-            continue
+        if contents is not None and rel_path in contents:
+            text = contents[rel_path][:MAX_SOURCE_CHARS_PER_FILE * 4].decode("utf-8", errors="replace")
+            text = text[:MAX_SOURCE_CHARS_PER_FILE]
+        else:
+            try:
+                with open(os.path.join(repo_path, rel_path), "r", encoding="utf-8", errors="replace") as f:
+                    text = f.read(MAX_SOURCE_CHARS_PER_FILE)
+            except OSError:
+                continue
         sources[rel_path] = text
         total += len(text)
     with _context_lock:
@@ -775,7 +781,7 @@ def _tool_explain_decision(session, sources, args):
                         "decisions": [{"id": d["id"], "detected": d["subject"]} for d in decisions]}, \
                     f"no decision matching '{query}'"
             r = ws.results
-            adr, _warnings, hit = reconstruct_one(ws.repo_url, ws.head_sha, ws.path, r["rules"], r["data"],
+            adr, _warnings, hit = reconstruct_one(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
                                                   r["history"]["commits"], decision, usage_for(ws))
             if workspace.is_current(analysis_id):
                 store_decisions(session, [adr])

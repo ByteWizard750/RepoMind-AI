@@ -59,18 +59,31 @@ def strip_jsonc(text: str) -> str:
     return "".join(out)
 
 
-def _read_json(abs_path: str):
+def _disk_reader(repo_path: str):
+    def read(rel_path: str):
+        try:
+            with open(os.path.join(repo_path, *rel_path.split("/")), "rb") as f:
+                return f.read()
+        except OSError:
+            return None
+    return read
+
+
+def _read_json(read, rel_path: str):
+    raw = read(rel_path)
+    if raw is None:
+        return None
     try:
-        with open(abs_path, encoding="utf-8-sig") as f:
-            return json.loads(strip_jsonc(f.read()))
-    except (OSError, ValueError):
+        return json.loads(strip_jsonc(raw.decode("utf-8-sig", errors="replace")))
+    except ValueError:
         return None
 
 
-def _compiler_options(repo_path: str, rel_path: str, depth: int = 0) -> dict:
+def _compiler_options(read, rel_path: str, depth: int = 0) -> dict:
     """compilerOptions with `extends` applied, and baseUrl/paths made
-    repo-relative (they are relative to the file that declares them)."""
-    data = _read_json(os.path.join(repo_path, *rel_path.split("/")))
+    repo-relative (they are relative to the file that declares them).
+    read(rel_path) -> bytes or None."""
+    data = _read_json(read, rel_path)
     if not isinstance(data, dict):
         return {}
     here = posixpath.dirname(rel_path)
@@ -84,7 +97,7 @@ def _compiler_options(repo_path: str, rel_path: str, depth: int = 0) -> dict:
             target += ".json"
         if target.startswith(".."):
             continue
-        merged.update(_compiler_options(repo_path, target, depth + 1))
+        merged.update(_compiler_options(read, target, depth + 1))
 
     options = data.get("compilerOptions")
     if isinstance(options, dict):
@@ -105,26 +118,38 @@ def load_path_configs(repo_path: str) -> list:
     """One entry per tsconfig.json/jsconfig.json in the repo that declares
     baseUrl or paths: {"dir", "base_url", "paths": [(pattern, [targets])]},
     with every path repo-relative. Sorted deepest folder first."""
-    configs = []
+    found = []
     for root, dirs, files in os.walk(repo_path):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
-        for name in files:
-            if name not in ("tsconfig.json", "jsconfig.json"):
+        found += [os.path.relpath(os.path.join(root, name), repo_path).replace(os.sep, "/")
+                  for name in files if name in ("tsconfig.json", "jsconfig.json")]
+    return _configs(_disk_reader(repo_path), found)
+
+
+def load_path_configs_from(files: dict) -> list:
+    """The same from config files already in memory: {rel_path: bytes}
+    (every tsconfig*/jsconfig* file, so `extends` targets resolve)."""
+    found = [p for p in files if posixpath.basename(p) in ("tsconfig.json", "jsconfig.json")]
+    return _configs(files.get, found)
+
+
+def _configs(read, config_paths: list) -> list:
+    configs = []
+    for rel in config_paths:
+        options = _compiler_options(read, rel)
+        # Paths resolve against baseUrl when one is in effect, otherwise
+        # against the config that declared them.
+        paths_base = options.get("baseUrl", options.get("pathsDir", ""))
+        paths = []
+        for pattern, targets in (options.get("paths") or {}).items():
+            if not isinstance(pattern, str) or not isinstance(targets, list) or pattern.count("*") > 1:
                 continue
-            rel = os.path.relpath(os.path.join(root, name), repo_path).replace(os.sep, "/")
-            options = _compiler_options(repo_path, rel)
-            # Paths resolve against baseUrl when one is in effect, otherwise
-            # against the config that declared them.
-            paths_base = options.get("baseUrl", options.get("pathsDir", ""))
-            paths = []
-            for pattern, targets in (options.get("paths") or {}).items():
-                if not isinstance(pattern, str) or not isinstance(targets, list) or pattern.count("*") > 1:
-                    continue
-                resolved = [_join(paths_base, t) for t in targets if isinstance(t, str) and t.count("*") <= 1]
-                if resolved:
-                    paths.append((pattern, resolved))
-            if paths or options.get("baseUrl") is not None:
-                configs.append({"dir": posixpath.dirname(rel), "name": name, "base_url": options.get("baseUrl"), "paths": paths})
+            resolved = [_join(paths_base, t) for t in targets if isinstance(t, str) and t.count("*") <= 1]
+            if resolved:
+                paths.append((pattern, resolved))
+        if paths or options.get("baseUrl") is not None:
+            configs.append({"dir": posixpath.dirname(rel), "name": posixpath.basename(rel),
+                            "base_url": options.get("baseUrl"), "paths": paths})
     # Deepest folder first; tsconfig.json wins over jsconfig.json in one folder.
     seen, unique = set(), []
     for c in sorted(configs, key=lambda c: (-len(c["dir"]), c["dir"], c["name"] != "tsconfig.json")):

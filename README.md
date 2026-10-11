@@ -70,12 +70,14 @@ python scripts/check_llm.py
 | `BEDROCK_MAX_CONCURRENCY` | Parallel Bedrock calls (default 4) |
 | `GROQ_API_KEYS` | Comma-separated Groq keys, one per account; calls rotate across them |
 | `HISTORY_MAX_COMMITS` | Commits mined per analysis (default 1500) |
-| `HISTORY_SNAPSHOTS` | History snapshots (default 12; reduced automatically for large repositories) |
+| `HISTORY_SNAPSHOTS` | History snapshots (default 20; reduced automatically for large repositories) |
 | `CLONE_FILTER` | e.g. `blob:none` for very large repositories |
 | `REPOMIND_CACHE_DIR` | Where generated artifacts are cached (default `.cache/`) |
 | `GITHUB_TOKEN` | Fine-grained token (Issues: read/write) for raising review findings as issues |
 | `REVIEW_DEFAULT_COMMITS`, `REVIEW_MAX_FILES`, `REVIEW_MAX_BATCHES` | Review range and cost bounds (5 commits, 12 files, 8 model calls) |
 | `REVIEW_MAX_ISSUES`, `REVIEW_MIN_SEVERITY`, `REVIEW_CLOSE_RESOLVED` | Issue limits: per run (10), threshold (medium), auto-close resolved (on) |
+| `CLONE_TIMEOUT_SECONDS`, `CLONE_DEPTH` | Clone time limit (600s) and commits fetched (1,501; `0` = full history) |
+| `LARGE_REPO_FILES`, `MAX_SOURCE_FILES`, `LARGE_REPO_SNAPSHOTS` | Large-repo mode: threshold (3,000 source files), files analyzed (3,000), history snapshots (6) |
 
 If Bedrock rejects tool calling, tool-using features switch to Groq automatically and say so.
 
@@ -104,13 +106,26 @@ rules:
 
 The defaults cover common layouts (controllers/routes/views, services/use cases, repositories/db/adapters, models/entities/domain, NestJS file suffixes). Models get a layer but no rules by default, since MVC and Django code uses them everywhere.
 
+## Demo repositories
+
+[`demo/`](demo/README.md) builds two realistic repositories with a scripted history — ShopWise (Python, FastAPI) and TaskFlow (TypeScript, Express) — in which every feature has something real to find: design decisions, architecture drift that is fixed and comes back, and a "bad commit" / "fix commit" pair for showing the code review raise and close GitHub issues live. `demo/README.md` has the setup and a demo-day walkthrough.
+
+## Large and unsupported repositories
+
+- **Progress and cancel.** The page shows the running stage (clone progress, parsing, graph, history snapshots) and a **Cancel** button; cancelling kills the clone at once and stops later stages at their next step. An analysis left running in another tab is shown with the same button.
+- **Before cloning** (github.com): the GitHub API says what the repository is written in. A repository with no Python, JavaScript or TypeScript (e.g. a C++ course) is rejected at once with its languages; a mostly-other-language one gets a notice. Without `GITHUB_TOKEN` the API allows 60 requests per hour per network, so this check may be skipped; the same rejection then happens right after cloning.
+- **Cloning** fetches only the history that is mined (`CLONE_DEPTH`) and stops after `CLONE_TIMEOUT_SECONDS` with the last progress line, instead of waiting forever.
+- **Folder URLs** analyze one part of a repository: `https://github.com/calcom/cal.com/tree/main/packages/trpc` (any branch, including names with `/`).
+- **Large-repo mode** (more than `LARGE_REPO_FILES` source files): tests, examples, stories, scripts and generated code are left out; if that is still over `MAX_SOURCE_FILES`, whole folders (packages, in a monorepo) are taken largest first. History uses fewer snapshots. The page lists exactly what was left out and suggests a folder URL for the rest.
+
 ## Code review and GitHub issues
 
 The **Code Review** section (or `review_cli.py`) reviews the diff of the last N commits:
 
 - **Architecture:** rule violations that exist at HEAD but not before the reviewed commits — deterministic, confidence 1.0.
 - **Code:** the AI reports bugs, security, error-handling, resource, concurrency, performance and wrong-layer problems in the *added* lines. Every finding must name an added line and quote it; the quote is checked against the file, failures are sent back once with the reason, and anything still unverifiable is dropped and counted as "unverified" — never shown as fact.
-- **Cost bounds:** at most `REVIEW_MAX_FILES` files and `REVIEW_MAX_BATCHES` model calls per review; the rest are listed as not reviewed. Results are cached per commit range.
+- **Double-check:** each file's AI findings get a second look with the whole file and the repository modules it imports; findings the model then rejects are dropped and listed with the reason ("withdrawn after a second look"), so issues aren't filed for problems that aren't there. Rule-engine findings are never second-guessed.
+- **Cost bounds:** at most `REVIEW_MAX_FILES` files and `REVIEW_MAX_BATCHES` model calls per review (plus up to 8 double-check calls); the rest are listed as not reviewed. Results are cached per commit range.
 
 **Raising issues** needs `GITHUB_TOKEN` — a fine-grained token limited to the repositories you choose, with *Issues: read and write* (and the default *Metadata: read*). Rules RepoMind enforces itself:
 
@@ -150,7 +165,9 @@ Generated artifacts are cached by repository, commit, rules, prompt version and 
 
 ```
 server.py              FastAPI app and endpoints
-workspace.py           clone lifecycle, analysis ids, URL validation
+workspace.py           clone lifecycle, progress and cancel, analysis ids, URL validation
+preflight.py           before cloning: folder URLs, GitHub size/language check
+scope.py               what part of a repository is analyzed (large repos, folders)
 parser/                Tree-sitter extractors (Python, JS, TS), tsconfig path aliases
 graph/                 Neo4j schema, current-state loader, history/temporal loader
 layers.py              layer assignment from rules
@@ -169,6 +186,7 @@ cache.py               artifact cache
 static/index.html      the web UI (plain HTML/JS)
 eval/                  evaluation scripts and results
 tests/                 pytest suite
+demo/                  scripted demo repositories (ShopWise, TaskFlow) and the demo-day guide
 ```
 
 ## Tests
@@ -195,7 +213,7 @@ Latest results:
 
 - **Drift detection:** precision, recall and F1 of 1.0 on 150 injected violations across 15 generated projects (with 150 decoys), on 27 violations injected into 3 real repositories, and on indirect forms — module objects, submodule imports, barrels and re-exports, tsconfig path aliases, constructor-injected fields — with unknown-class receivers as decoys.
 - **ADR decision points:** 46% strict / 82% temporal recall over 28 real ADRs in 3 repositories; misses are mostly decisions with no trace in code (naming conventions, Git workflow, code style). See the report for which matches land on squashed commits.
-- **Code review:** 11 of 11 planted problems found (SQL and shell injection, hard-coded key, swallowed exception, off-by-one, division by zero, unchecked None, mutable default, file leak, missing `await`, assignment in a condition) with no false positives and no decoy flagged, in each of 3 runs; the planted architecture violation came from the rule engine. These are textbook problems, so this is an upper bound for subtle bugs.
+- **Code review:** of 11 planted problems (SQL and shell injection, hard-coded key, swallowed exception, off-by-one, division by zero, unchecked None, mutable default, file leak, missing `await`, assignment in a condition), 32 of 33 found over 3 runs on Bedrock gpt-oss-120b (one run missed one, in the first pass), with no false positives and no decoy flagged; the double-check rejected no true finding. The planted architecture violation came from the rule engine. These are textbook problems, so this is an upper bound for subtle bugs. On the demo repositories, every planted problem was found in all 6 rehearsals of each "bad commit".
 - **Efficiency:** deterministic analysis of a 50–100 file repository in 12–14 s; warm-cache repeats make zero LLM calls.
 - **Q&A:** routing 100% on a 38-question development set; offline evidence check 30/30 — for every template question on 3 repositories, the tool a correct agent would call returns the full ground truth.
 
@@ -203,7 +221,8 @@ Latest results:
 
 - Python, JavaScript and TypeScript only. Git submodules aren't followed.
 - Calls are resolved where the code states the target: direct and imported names, module objects, re-exports and barrels, tsconfig/jsconfig path aliases, static methods, and fields whose class is declared or constructed (`private readonly users: UserService`, `self.repo = Repo()`). Calls on values of unknown class — untyped parameters or fields, interface-typed fields, factory results — aren't; the imports rules still see those dependencies.
-- The temporal graph is sampled (12 snapshots by default), at module and dependency level; functions and calls exist at HEAD only.
+- The temporal graph is sampled (20 snapshots by default, 6 in large-repo mode), at module and dependency level; functions and calls exist at HEAD only.
+- Large repositories (over 3,000 source files) are analyzed in part — see *Large and unsupported repositories*. Cloning time depends on the network: cal.com takes 3–5 minutes on a ~0.7 MB/s connection.
 - Reconstructed ADRs are inferences from history, labelled as such, with a capped confidence — not recovered developer intent.
 - One analysis at a time; the graph holds one repository.
 

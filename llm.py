@@ -404,8 +404,10 @@ def chat(messages, *, purpose, max_tokens, tools=None, tool_choice=None, json_mo
         print(f"[llm] {provider.name}[{slot}] {purpose}: ok in {time.time() - t0:.1f}s (attempt {attempt})",
               flush=True)
 
-        # gpt-oss can spend the whole budget reasoning and return nothing.
-        if finish_reason == "length" and not content and not tool_calls and not length_retried:
+        # gpt-oss can spend the whole budget reasoning and return nothing, or
+        # only the start of an answer; a cut-off answer is no use to any caller.
+        if (finish_reason == "length" and not tool_calls and not length_retried
+                and params["max_tokens"] < MAX_LENGTH_RETRY_TOKENS):
             length_retried = True
             params["max_tokens"] = min(MAX_LENGTH_RETRY_TOKENS, params["max_tokens"] * 2)
             continue

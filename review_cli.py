@@ -34,7 +34,9 @@ def report(result: dict, gh: dict) -> str:
     lines = [f"## RepoMind code review — `{rng['base_short']}..{rng['head_short']}`", "",
              f"{len(rng['commits'])} commit(s), {len(result['files_reviewed'])} file(s) reviewed, "
              f"{len(result['findings'])} finding(s)"
-             + (f", {result['unverified']} unverified AI finding(s) dropped" if result["unverified"] else "") + ".", ""]
+             + (f", {result['unverified']} unverified AI finding(s) dropped" if result["unverified"] else "")
+             + (f", {len(result['rejected_on_check'])} withdrawn on the double-check"
+                if result.get("rejected_on_check") else "") + ".", ""]
     if result["findings"]:
         lines += ["| # | Severity | Category | Location | Finding |", "|---|---|---|---|---|"]
         for f in result["findings"]:

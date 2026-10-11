@@ -120,8 +120,35 @@ def _synthesize(state: QAState) -> dict:
     return {"answer": result.content}
 
 
+# gpt-oss sometimes returns its plan ("We need to call read_source for ...")
+# instead of an answer, typically once the tools are no longer offered.
+# Only planning phrasing counts: an answer may well mention a tool or a step.
+_PLANNING = re.compile(r"^\s*(we need to|we should|we must|let's|let us|i need to|i will|i'll)\b"
+                       r"|\b(we|i) (need to|should|must|will|'ll) (call|use|invoke|run|query|check)\b", re.IGNORECASE)
+NOT_ANSWERED = ("I gathered evidence for this question but couldn't put together a reliable answer. "
+                "Please ask again, or ask a narrower question.")
+
+
+def looks_like_plan(answer: str) -> bool:
+    """A short reply that talks about calling tools rather than answering."""
+    text = (answer or "").strip()
+    return bool(text) and len(text) < 800 and bool(_PLANNING.search(text))
+
+
 def _finalize(state: QAState) -> dict:
-    answer = qa.clean_citations(state.get("answer") or "").strip()
+    answer = state.get("answer") or ""
+    if looks_like_plan(answer):
+        # Ask once more for the answer itself, from the evidence already gathered.
+        messages = state["messages"]
+        if messages and messages[-1].get("tool_calls"):
+            messages = messages[:-1]          # calls asked for but never run
+        retry = qa.synthesis_messages(messages)
+        retry[-1]["content"] += ("\n\nTools are no longer available. Do not describe further steps: write the "
+                                 "final answer for me now.")
+        answer = llm.chat(retry, purpose="qa", max_tokens=qa.MAX_OUTPUT_TOKENS).content
+        if looks_like_plan(answer):
+            answer = NOT_ANSWERED
+    answer = qa.clean_citations(answer).strip()
     if not answer:
         raise ValueError("The model returned an empty answer")
     if "confidence:" not in answer.lower():

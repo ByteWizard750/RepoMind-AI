@@ -187,15 +187,41 @@ def test_review_finds_introduced_violation_and_validates_ai(repo, fake_env, monk
 
     code = [f for f in result["findings"] if f["kind"] == "code"]
     assert [f["title"] for f in code] == ["Order saved without validation"]
-    assert result["unverified"] == 2 and len(calls) == 2           # one retry with feedback, then dropped
+    # Review, one retry with feedback (the 2 ungrounded findings are then dropped), one double-check.
+    assert result["unverified"] == 2 and len(calls) == 3
     assert "failed validation" in calls[1][-1]["content"]
+    assert calls[2][0]["content"].startswith("You double-check") and "FINDINGS TO CHECK" in calls[2][1]["content"]
+    assert "database.py" in calls[2][1]["content"]                 # the imported module is shown for context
     assert result["findings"][0]["severity"] == "high"             # severity-3 rule ranks first
     assert [f["rank"] for f in result["findings"]] == list(range(1, len(result["findings"]) + 1))
     prompt = calls[0][1]["content"]
     assert "already_reported_rule_violations" in prompt and '"layer": "controller"' in prompt
 
     again = review_graph.review_changes(path, "local:fixture", RULES, head=shas[2], commits=1)
-    assert len(calls) == 2 and again["llm_calls_saved"] == 1 and again["findings"] == result["findings"]
+    assert len(calls) == 3 and again["llm_calls_saved"] == 1 and again["findings"] == result["findings"]
+
+
+def test_double_check_drops_rejected_findings(repo, fake_env, monkeypatch):
+    path, shas = repo["path"], repo["shas"]
+    line = _line_of(CONTROLLER_VIOLATING, "return save_record(order)")
+    findings = [_raw(line=line, title="Real problem"), _raw(line=line, title="Misread problem", category="security")]
+    calls = []
+
+    def chat(messages, **kwargs):
+        calls.append(messages)
+        if messages[0]["content"].startswith("You double-check"):
+            verdicts = [{"id": 1, "verdict": "reject", "reason": "save_record validates the order itself."}]
+            return llm.ChatResult(content=json.dumps({"verdicts": verdicts}), tool_calls=[], finish_reason="stop",
+                                  provider="fake")
+        return llm.ChatResult(content=json.dumps({"findings": findings}), tool_calls=[], finish_reason="stop",
+                              provider="fake")
+
+    monkeypatch.setattr(review_graph.llm, "chat", chat)
+    result = review_graph.review_changes(path, "local:fixture", RULES, head=shas[2], commits=1)
+    assert [f["title"] for f in result["findings"] if f["kind"] == "code"] == ["Real problem"]   # no verdict: kept
+    assert result["rejected_on_check"] == [{"file": "controller.py", "line": line, "title": "Misread problem",
+                                            "reason": "save_record validates the order itself."}]
+    assert {f["kind"] for f in result["findings"]} == {"architecture", "code"}   # rule findings never re-checked
 
 
 def test_review_reports_resolved_violations(repo, fake_env, monkeypatch):
@@ -204,6 +230,22 @@ def test_review_reports_resolved_violations(repo, fake_env, monkeypatch):
     result = review_graph.review_changes(path, "local:fixture", RULES, commits=1)   # the fix commit
     assert result["findings"] == [] and result["head_violation_pairs"] == []
     assert {r["rule"] for r in result["resolved"]} == {"no-controller-to-db", "no-controller-imports-db"}
+
+
+def test_unparseable_answer_is_asked_again(repo, fake_env, monkeypatch):
+    path, shas = repo["path"], repo["shas"]
+    line = _line_of(CONTROLLER_VIOLATING, "return save_record(order)")
+    answers = iter(['{\n"findings" [}', json.dumps({"findings": [_raw(line=line)]}), json.dumps({"verdicts": []})])
+    temperatures = []
+
+    def chat(messages, **kwargs):
+        temperatures.append(kwargs["temperature"])
+        return llm.ChatResult(content=next(answers), tool_calls=[], finish_reason="stop", provider="fake")
+
+    monkeypatch.setattr(review_graph.llm, "chat", chat)
+    result = review_graph.review_changes(path, "local:fixture", RULES, head=shas[2], commits=1)
+    assert [f["title"] for f in result["findings"] if f["kind"] == "code"] == ["Direct write"]
+    assert temperatures == [0, 0.3, 0] and not result["warnings"]   # the retry samples a little
 
 
 def test_llm_failure_keeps_architecture_findings(repo, fake_env, monkeypatch):

@@ -181,6 +181,7 @@ def score(result: dict, files: dict) -> dict:
     arch = [f for f in result["findings"] if f["kind"] == "architecture" and f["file"] == ARCHITECTURE[1]
             and f.get("rule") == ARCHITECTURE[2]]
     n_found = sum(bool(v) for v in found.values())
+    rejected = result.get("rejected_on_check", [])
     return {
         "planted": {pid: {"found": bool(found[pid]), "category_expected": planted[pid][2],
                           "categories": sorted({f["category"] for f in found[pid]}),
@@ -194,6 +195,10 @@ def score(result: dict, files: dict) -> dict:
                            for f in other],
         "architecture_found": bool(arch),
         "unverified_dropped": result["unverified"],
+        "rejected_on_check": rejected,
+        # A double-check rejection on a planted line would be the check costing recall.
+        "planted_rejected": sorted(pid for pid, (path, line, _) in planted.items()
+                                   if any(r["file"] == path and abs(r["line"] - line) <= MATCH_LINES for r in rejected)),
         "warnings": result["warnings"],
     }
 
@@ -220,7 +225,8 @@ def main():
                            - before.get("prompt_tokens", 0) - before.get("completion_tokens", 0))
             runs.append(s)
             print(f"run {run + 1}: recall {s['recall']} precision {s['precision']} decoys {s['decoys_flagged']} "
-                  f"arch {s['architecture_found']} unverified {s['unverified_dropped']}")
+                  f"arch {s['architecture_found']} unverified {s['unverified_dropped']} "
+                  f"rejected {len(s['rejected_on_check'])} (planted {s['planted_rejected']})")
     finally:
         shutil.rmtree(root, ignore_errors=True)
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -233,10 +239,13 @@ def main():
           f"`{provider['model']}` ({provider['provider']}), temperature 0, {args.runs} run(s). A planted problem "
           f"counts as found when a finding is on its file within {MATCH_LINES} lines.", "",
           table(["Run", "Recall (planted code problems)", "Precision", "Findings", "Decoys flagged",
-                 "Other findings", "Architecture (rule engine)", "Unverified dropped", "LLM calls", "Tokens"],
+                 "Other findings", "Architecture (rule engine)", "Unverified dropped", "Rejected by double-check",
+                 "LLM calls", "Tokens"],
                 [[i + 1, r["recall"], r["precision"], r["findings"], len(r["decoys_flagged"]),
                   len(r["other_findings"]), "found" if r["architecture_found"] else "missed",
-                  r["unverified_dropped"], r["llm_calls"], r["tokens"]] for i, r in enumerate(runs)]), "",
+                  r["unverified_dropped"],
+                  f"{len(r['rejected_on_check'])} ({len(r['planted_rejected'])} planted)",
+                  r["llm_calls"], r["tokens"]] for i, r in enumerate(runs)]), "",
           "## Planted problems", "",
           table(["Problem", "Expected category"] + [f"Run {i + 1}" for i in range(len(runs))],
                 [[pid, kind] + ["found" + (f" ({', '.join(r['planted'][pid]['categories'])})" if r["planted"][pid]["categories"] else "")
@@ -250,10 +259,20 @@ def main():
                    "when the report is reviewed):", ""]
             md += [f"- `{o['file']}:{o['line']}` ({o['severity']}) {o['title']}" for o in r["other_findings"]]
             md.append("")
+        if r["rejected_on_check"]:
+            md += [f"Run {i + 1} findings rejected by the double-check:", ""]
+            md += [f"- `{x['file']}:{x['line']}` {x['title']} — {x['reason']}" for x in r["rejected_on_check"]]
+            md.append("")
         if r["warnings"]:
             md += [f"Run {i + 1} warnings: " + "; ".join(r["warnings"]), ""]
     md += ["Precision counts every finding not on a planted line as wrong, including real problems the benchmark "
            "didn't plant, so it is a lower bound.", "",
+           "The double-check re-reads each file's AI findings with the whole file and the modules it imports and "
+           "drops the ones it rejects. It was added after a rehearsal on the demo repositories: reviewing a commit "
+           "that only fixed problems produced confident but wrong findings (an \"indentation error\" in correct "
+           "code, a pydantic model taken for an ORM model), which would have been filed as issues. A planted "
+           "problem missed in a run with no rejection on its line was missed by the first pass, not by the check.",
+           "",
            "Caveats: the planted problems are textbook cases in small files, so these numbers are an upper bound for "
            "subtle bugs in large real changes. While building the benchmark, a first version accidentally contained "
            "a real unplanned problem (the payment function returned the API key in its response); the reviewer "

@@ -3,14 +3,15 @@ rule violations, health) at N commits spread evenly along the first-parent
 history, HEAD included. This is what the drift curve and the temporal graph
 are built from.
 
-Snapshots are materialized from git objects (`git ls-tree` + one
-`git cat-file --batch` process) into a scratch directory, never by checking
-out the workspace, whose HEAD files stay intact for source reading.
+Snapshots are read straight from git objects (`git ls-tree` + one
+`git cat-file --batch` process) and parsed in memory, never by checking out
+the workspace (whose HEAD files stay intact for source reading) and never by
+writing a copy to disk: on Windows every freshly written file is scanned by
+the antivirus on first read, which made a 1,500-file snapshot take ~55s
+instead of under one.
 """
 import os
-import shutil
 import subprocess
-import tempfile
 import time
 
 from history import git
@@ -19,7 +20,7 @@ from parser import ast_extractor, tsconfig
 from rules.evaluate import evaluate, format_violation, violation_key
 from rules.scoring import compute_health, compute_health_normalized
 
-HISTORY_SNAPSHOTS = int(os.environ.get("HISTORY_SNAPSHOTS", 12))
+HISTORY_SNAPSHOTS = int(os.environ.get("HISTORY_SNAPSHOTS", 20))
 MIN_SNAPSHOTS = 4
 SNAPSHOT_TIME_BUDGET_SECONDS = 90  # used only to size N, never to stop early
 MAX_BLOB_BYTES = 1_000_000
@@ -30,15 +31,17 @@ SOURCE_EXTENSIONS = (".py", ".js", ".jsx", ".ts", ".tsx")
 _SKIP_DIRS = ast_extractor._SKIP_DIRS
 
 
-def pick_snapshot_commits(repo_path: str, n: int, eligible=None) -> list:
+def pick_snapshot_commits(repo_path: str, n: int, eligible=None, subdir: str = "") -> list:
     """Evenly spaced first-parent commits, oldest first, always ending at HEAD.
 
     eligible(sha, is_merge) filters candidates: real histories are often
     dominated by dependency-bump commits that never touch code, and spacing
-    snapshots over those wastes most of them on identical architecture."""
-    lines = git(repo_path, "rev-list", "--first-parent", "--topo-order", "--parents", "HEAD").splitlines()
+    snapshots over those wastes most of them on identical architecture.
+    subdir limits candidates to commits that touched that folder."""
+    lines = git(repo_path, "rev-list", "--first-parent", "--topo-order", "--parents", "HEAD",
+                *(["--", subdir] if subdir else [])).splitlines()
     entries = [(parts[0], len(parts) > 2) for parts in (line.split() for line in reversed(lines)) if parts]
-    head = entries[-1][0]
+    head = git(repo_path, "rev-parse", "HEAD").strip()
     shas = [sha for sha, is_merge in entries if eligible is None or eligible(sha, is_merge)]
     if not shas or shas[-1] != head:
         shas.append(head)
@@ -71,51 +74,60 @@ def _wanted(path: str) -> bool:
     return name.endswith(SOURCE_EXTENSIONS) or tsconfig.is_config_file(name)
 
 
-def materialize(repo_path: str, sha: str, dest: str) -> int:
-    """Writes the source files (and TS/JS configs) of commit `sha` into
-    dest. Returns the count."""
-    listing = git(repo_path, "ls-tree", "-r", "-l", "-z", sha, binary=True).decode("utf-8", errors="replace")
+def read_commit(repo_path: str, sha: str, include=None) -> tuple:
+    """The source files and TS/JS configs of commit `sha`, read from git
+    into memory: ({path: bytes}, {config path: bytes}). include(path) limits
+    the source files (the analysis scope); configs are always read, aliases
+    may point anywhere. Files over MAX_BLOB_BYTES are skipped (generated)."""
+    # No -l: asking for sizes would make a partial clone fetch every big blob.
+    listing = git(repo_path, "ls-tree", "-r", "-z", sha, binary=True).decode("utf-8", errors="replace")
     entries = []
     for line in listing.split("\0"):
         if not line:
             continue
         meta, _, path = line.partition("\t")
         fields = meta.split()
-        if len(fields) != 4:
+        if len(fields) != 3:
             continue
-        mode, kind, blob, size = fields
-        if kind != "blob" or mode in ("120000", "160000") or not size.isdigit():
+        mode, kind, blob = fields
+        if kind != "blob" or mode in ("120000", "160000"):
             continue
-        if int(size) > MAX_BLOB_BYTES or not _wanted(path) or not _safe_relative(path):
+        if not _wanted(path) or not _safe_relative(path):
+            continue
+        if include is not None and path.endswith(SOURCE_EXTENSIONS) and not include(path):
             continue
         entries.append((blob, path))
+    sources, configs = {}, {}
     if not entries:
-        return 0
+        return sources, configs
 
     proc = subprocess.Popen(["git", "-C", repo_path, "cat-file", "--batch"],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    written = 0
     try:
         for blob, path in entries:
             proc.stdin.write(f"{blob}\n".encode())
             proc.stdin.flush()
             header = proc.stdout.readline().split()
             if len(header) != 3 or header[1] != b"blob":
-                continue
+                continue                  # "missing": nothing else follows
             content = proc.stdout.read(int(header[2]))
             proc.stdout.read(1)  # trailing newline after each object
-            target = os.path.join(dest, *path.split("/"))
-            try:
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-                with open(target, "wb") as f:
-                    f.write(content)
-                written += 1
-            except OSError:
+            if len(content) > MAX_BLOB_BYTES:
                 continue
+            (sources if path.endswith(SOURCE_EXTENSIONS) else configs)[path] = content
     finally:
         proc.stdin.close()
         proc.wait()
-    return written
+    return sources, configs
+
+
+def parse_commit(repo_path: str, sha: str, rules: dict, include=None, read=None) -> dict:
+    """Parsed, layer-tagged graph data of commit `sha`, in memory.
+    read: an already-done read_commit result to reuse."""
+    sources, configs = read if read is not None else read_commit(repo_path, sha, include)
+    data = ast_extractor.parse_sources(sources, configs)
+    apply_layers(data, rules)
+    return data
 
 
 def summarize(data: dict, rules: dict) -> dict:
@@ -135,15 +147,8 @@ def summarize(data: dict, rules: dict) -> dict:
     }
 
 
-def _snapshot_of(repo_path: str, sha: str, rules: dict) -> dict:
-    scratch = tempfile.mkdtemp(prefix="repomind_snap_")
-    try:
-        materialize(repo_path, sha, scratch)
-        data = ast_extractor.parse_repo(scratch)
-        apply_layers(data, rules)
-        return summarize(data, rules)
-    finally:
-        shutil.rmtree(scratch, ignore_errors=True)
+def _snapshot_of(repo_path: str, sha: str, rules: dict, include=None) -> dict:
+    return summarize(parse_commit(repo_path, sha, rules, include), rules)
 
 
 def source_change_filter(commits: list):
@@ -158,15 +163,25 @@ def source_change_filter(commits: list):
 
 
 def build_snapshots(repo_path: str, rules: dict, head_data: dict, head_parse_seconds: float,
-                    commit_lookup, eligible=None) -> list:
+                    commit_lookup, eligible=None, include=None, max_snapshots=None, on_snapshot=None,
+                    subdir: str = "") -> list:
     """Returns snapshots oldest first. head_data is the already-parsed HEAD,
-    reused instead of re-parsed. commit_lookup(sha) -> commit metadata."""
+    reused instead of re-parsed. commit_lookup(sha) -> commit metadata.
+    include limits the files (the analysis scope; head_data must already be
+    limited the same way), max_snapshots caps the count, and
+    on_snapshot(done, total) is called before each one (progress, cancellation);
+    subdir picks snapshot commits among those that touched that folder."""
     n = adaptive_snapshot_count(head_parse_seconds)
-    shas = pick_snapshot_commits(repo_path, n, eligible)
+    if max_snapshots:
+        n = max(2, min(n, max_snapshots))
+    shas = pick_snapshot_commits(repo_path, n, eligible, subdir)
     snapshots = []
     for idx, sha in enumerate(shas):
+        if on_snapshot:
+            on_snapshot(idx, len(shas))
         t0 = time.time()
-        facts = summarize(head_data, rules) if idx == len(shas) - 1 else _snapshot_of(repo_path, sha, rules)
+        facts = (summarize(head_data, rules) if idx == len(shas) - 1
+                 else _snapshot_of(repo_path, sha, rules, include))
         meta = commit_lookup(sha)
         snapshots.append({"idx": idx, "sha": sha, "short": sha[:7], "date": meta.get("date"),
                           "subject": meta.get("subject", ""), "seconds": round(time.time() - t0, 2), **facts})

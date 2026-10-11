@@ -27,25 +27,45 @@ _LAYER_BY_FILENAME = {
 }
 
 
-def parse_repo(repo_path: str) -> dict:
+def parse_repo(repo_path: str, include=None) -> dict:
     """Parse every supported source file under repo_path (Python, plus
     JavaScript/TypeScript resolved together by js_extractor.parse_family) and merge
     their results into one dict with keys: modules, classes, functions,
     calls, imports — plain lists of dicts/tuples ready for graph/loader.py
     to write. Each language extractor produces this exact same shape
     independently, so merging is a plain per-key concatenation.
+
+    include(rel_path) -> bool, when given, limits which source files are
+    parsed (the analysis scope of a large repository or one folder).
     """
     results = [
-        _parse_python_repo(repo_path),
-        js_extractor.parse_family(repo_path),
+        _parse_python_repo(repo_path, include),
+        js_extractor.parse_family(repo_path, include),
     ]
+    return _merge(results)
+
+
+def parse_sources(sources: dict, config_files: dict = None) -> dict:
+    """parse_repo for file contents already in memory: sources is
+    {rel_path: bytes} (e.g. read straight from git, which skips writing a
+    copy to disk), config_files the tsconfig/jsconfig files {rel_path: bytes}."""
+    from parser import tsconfig
+
+    parser = Parser(PY_LANGUAGE)
+    raw_files = {rel: _extract_file(parser.parse(src).root_node, rel)
+                 for rel, src in sorted(sources.items()) if rel.endswith(".py")}
+    configs = tsconfig.load_path_configs_from(config_files or {})
+    return _merge([_build_python(raw_files), js_extractor.parse_family_sources(sources, configs)])
+
+
+def _merge(results: list) -> dict:
     return {
         key: [item for r in results for item in r[key]]
         for key in ("modules", "classes", "functions", "calls", "imports")
     }
 
 
-def _parse_python_repo(repo_path: str) -> dict:
+def _parse_python_repo(repo_path: str, include=None) -> dict:
     """Parse every .py file under repo_path and resolve CALLS/IMPORTS edges.
 
     Returns a dict with keys: modules, classes, functions, calls, imports —
@@ -54,12 +74,15 @@ def _parse_python_repo(repo_path: str) -> dict:
     parser = Parser(PY_LANGUAGE)
 
     raw_files = {}
-    for rel_path, abs_path in _iter_py_files(repo_path):
+    for rel_path, abs_path in _iter_py_files(repo_path, include):
         with open(abs_path, "rb") as f:
             source = f.read()
         tree = parser.parse(source)
         raw_files[rel_path] = _extract_file(tree.root_node, rel_path)
+    return _build_python(raw_files)
 
+
+def _build_python(raw_files: dict) -> dict:
     dotted_to_path = _build_module_index(raw_files)
 
     modules = [
@@ -111,14 +134,8 @@ def _parse_python_repo(repo_path: str) -> dict:
     }
 
 
-def _iter_py_files(repo_path: str):
-    for root, dirs, files in os.walk(repo_path):
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
-        for name in files:
-            if name.endswith(".py"):
-                abs_path = os.path.join(root, name)
-                rel_path = os.path.relpath(abs_path, repo_path).replace(os.sep, "/")
-                yield rel_path, abs_path
+def _iter_py_files(repo_path: str, include=None):
+    yield from js_extractor.iter_files(repo_path, (".py",), include)
 
 
 def _dotted_name(module_path: str) -> str:

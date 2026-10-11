@@ -150,14 +150,17 @@ def parse_diff(text: str) -> list:
     return files
 
 
-def collect(repo: str, base: str, head: str, ignore=None, max_files: int = MAX_FILES) -> dict:
+def collect(repo: str, base: str, head: str, ignore=None, max_files: int = MAX_FILES, include=None) -> dict:
     """{"files": reviewed file diffs (most changed first, tests last),
-    "skipped": [{"path", "reason"}]}."""
+    "skipped": [{"path", "reason"}]}. include limits the files to the
+    analysis scope."""
     raw = git(repo, "diff", "-M", f"-U{CONTEXT_LINES}", "--no-color", "--no-ext-diff", base, head)
     reviewed, skipped = [], []
     for f in parse_diff(raw):
         reason = ("deleted" if f["status"] == "deleted" else "binary" if f["binary"]
                   else "no added lines" if not f["added"] else _reviewable(f["path"]))
+        if not reason and include is not None and not include(f["path"]):
+            reason = "outside the analyzed part of the repository"
         if not reason and sum(len(t) for h in f["hunks"] for _, _, t in h["lines"]) > MAX_FILE_DIFF_CHARS:
             reason = "diff too large (likely generated)"
         if reason:

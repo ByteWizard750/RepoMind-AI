@@ -192,3 +192,13 @@ def test_parse_json_repairs_unvalidated_bracket_slips():
     raw = '<reasoning>uses `${x}` and {braces}</reasoning>{\n{"findings": [\n{"file": "a.js", "q": "{["}\n] }'
     assert llm.parse_json(raw) == {"findings": [{"file": "a.js", "q": "{["}]}
     assert llm.repair_json_brackets('{"a": {"b": 1}}') == {"a": {"b": 1}}   # valid nesting untouched
+
+
+def test_cut_off_answer_is_retried_with_more_room(fake):
+    def behaviour(name, params, n):
+        if n == 1:
+            return _response(content="<reasoning>long thinking</reasoning>We need to call", finish_reason="length")
+        return _response(content="The complete answer.")
+    fake.script["behaviour"] = behaviour
+    assert llm.chat(MSG, purpose="qa", max_tokens=1500).content == "The complete answer."
+    assert [c[1]["max_tokens"] for c in fake.script["calls"]] == [1500, 3000]

@@ -1572,3 +1572,101 @@ out of scope; nothing reviewed changes or raised issues before this.
 - Not yet done: a live run on a real GitHub repository and the GitHub
   Action, pending a throwaway repository and token from the user.
 
+
+## Implementation Scope — Large and unsupported repositories
+
+Requested after a real demo attempt: cal.com (a large monorepo) ran with no
+feedback and produced nothing, and a C++ course repository cloned for minutes
+before it could fail. There was no progress, no way to stop an analysis, and
+no time limit on cloning.
+
+### What was built
+- **Progress and cancel.** The running analysis reports its stage and detail
+  (git's own clone progress, file counts, "snapshot 3 of 12");
+  `GET /analyze/status` and `POST /analyze/cancel`. Cancelling kills the git
+  process tree at once; later stages stop at their next checkpoint. The page
+  polls the status, shows a Cancel button, and on "already running" offers to
+  show (and cancel) the analysis left running elsewhere.
+- **Before cloning.** Folder URLs (`/tree/<branch>/<folder>`) are resolved
+  against the remote's real branches (names may contain `/`). The GitHub API
+  (size, languages) rejects repositories with no Python/JavaScript/TypeScript
+  and adds a notice when they are a minority. When the API is unavailable
+  (60 requests/hour per network without `GITHUB_TOKEN`), a contents-free
+  depth-1 probe clone lists the files instead: the C++ course repository is
+  rejected in about 2 seconds with what it is written in.
+- **Cloning** fetches `HISTORY_MAX_COMMITS + 1` commits (history mining drops
+  the shallow boundary commit, whose diff would claim it added every file,
+  and marks history truncated) and stops after `CLONE_TIMEOUT_SECONDS` (600)
+  with the last progress line.
+- **Scope** (`scope.py`). Up to `LARGE_REPO_FILES` (3,000) source files the
+  whole repository is analyzed, as before. Above that, tests, examples,
+  stories, scripts and generated code are left out, then whole folders are
+  taken largest first up to `MAX_SOURCE_FILES` (3,000), splitting any folder
+  bigger than the cap; history uses at most 6 snapshots. A folder URL limits
+  everything — parse, snapshots, history mining, review — to that folder.
+  The same scope filter is applied to HEAD, every snapshot and the review's
+  base commit, so comparisons stay like for like; scoped analyses get their
+  own cache identity. The page lists what was left out and suggests a
+  folder URL for the rest.
+- **Parsing from git in memory.** HEAD, every history snapshot and the
+  review's base are read with one `git cat-file --batch` and parsed in memory
+  instead of being written to disk and walked. On Windows, the antivirus
+  scans each freshly written file on first read: a 1,500-file snapshot took
+  ~55 s that way and 0.6 s in memory. A test checks the in-memory parse gives
+  exactly the graph the on-disk parse gives (aliases, Python, JS, TS).
+
+### Measured
+- cal.com (5,006 source files, 3,000 analyzed), from a local clone: 57 s for
+  the full analysis, down from 235 s for 1,500 files before parsing moved to
+  memory. Its clone over a ~0.7 MB/s connection still takes 3–5 minutes
+  (126 MB even for one commit; history and a 37 MB video, screenshots and
+  build caches make up most of it). Partial clones were measured and not
+  used: they saved little and history mining then had to fetch the skipped
+  files one by one.
+- fastapi-realworld-example-app (95 files, 12 snapshots): 10.1 s end to end.
+
+## Implementation Scope — Demo repositories, and what rehearsing on them fixed
+
+Requested so the whole project can be tested end to end and shown on demo day
+on repositories built for it, rather than on arbitrary public ones.
+
+### What was built
+- `demo/build_demo_repos.py` with `demo/gitstory.py`, `demo/shop_story.py` and
+  `demo/tasks_story.py`: two repositories generated commit by commit with fixed
+  authors and dates (identical hashes on every rebuild), outside this
+  repository in `../repomind-demos/`. Rebuilding only ever deletes folders the
+  script created (a marker file).
+  - ShopWise (Python, FastAPI, 23 commits): pydantic, raw sqlite3 →
+    SQLAlchemy, Redis cache, payment adapter, structlog; drift introduced,
+    fixed (health back to 100), then introduced again.
+  - TaskFlow (TypeScript, Express, 16 commits): a pure-rename JS → TS move,
+    callbacks → classes, `pg` replaced by Prisma, zod, `@app/*` alias and
+    barrels, an event bus; drift fixed and then a violation reached through
+    the alias, the barrel and an injected field.
+  - `bad` / `fix` / `ci` commands for the live code-review moment.
+- `tests/test_demo_repos.py` pins the story (violations at HEAD, drift → fix
+  → drift, the rename commit, the bad/fix commits) without Neo4j or a model.
+- `demo/README.md`: setup and a demo-day walkthrough.
+
+### Fixed because of the rehearsals
+- **Code review double-check** (`agents/review_graph.py`, new `verify` step):
+  reviewing a commit that only fixed problems produced confident wrong
+  findings (an "indentation error" in correct code, a pydantic model taken
+  for an ORM model) that would have been filed as issues. Each file's AI
+  findings now get a second look with the whole file and the repository
+  modules it imports; rejected findings are dropped and listed with the
+  reason. On the benchmark it rejected no true finding.
+- **Unparseable JSON** from the model is asked for once more (a little
+  sampling) instead of losing the batch.
+- **Q&A answers that are plans**: gpt-oss occasionally answered "We need to
+  call read_source…" once tools were no longer offered, and that text was
+  shown as the answer. Such replies are asked again for the final answer and,
+  failing that, replaced by an honest "couldn't answer". `llm.chat` also
+  retries any answer cut off by the output limit (previously only empty
+  ones) with twice the room, up to the cap.
+- **History resolution**: snapshots default to 20 (from 12) now that parsing
+  them is cheap; on small repositories every story beat is a point on the
+  chart.
+- Demo naming caught a rules nuance: a `handlers/` folder is the controller
+  layer in the default rules, so event handlers there are judged as
+  controllers.

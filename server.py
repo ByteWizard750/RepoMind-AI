@@ -5,7 +5,8 @@ Usage: python server.py   (serves on http://localhost:8000)
 POST /analyze does all deterministic work (clone, parse, layers, graph,
 rules, diagram, history and snapshots); the page then loads the generative
 sections lazily from their own endpoints, each tied to the analysis_id so a
-newer analysis can't be mixed in. The code review (POST /review) runs only
+newer analysis can't be mixed in. While it runs, GET /analyze/status reports
+the stage and POST /analyze/cancel stops it. The code review (POST /review) runs only
 when asked, and raises GitHub issues only through POST /review/issues.
 """
 import time
@@ -28,17 +29,19 @@ from docs_generator import generate_documentation
 from export_diagram import build_folder_mermaid, build_mermaid, fetch_imports, fetch_modules
 from graph import loader
 from graph.history_loader import graph_at_snapshot, load_history
-from history import commit_meta, contributors, introduced_at, mine_commits
+from history import commit_meta, contributors, git, introduced_at, mine_commits
 from layers import apply_layers
 from parser import ast_extractor
 from review import github_issues
 from review.diff import file_at
+from scope import LARGE_REPO_SNAPSHOTS, UnsupportedRepo
+from scope import choose as choose_scope
 from qa_engine import answer_question, attach_analysis, clear_repo_context, set_repo_context
 from rules.config import MAX_RULES_YAML_CHARS, RulesError, default_rules_text, load_rules_config
 from rules.evaluate import evaluate, format_violation, violation_key
 from rules.rule_engine import run_rule_engine
 from rules.scoring import compute_health, compute_health_normalized
-from snapshots import build_snapshots, import_intervals, module_presence, source_change_filter
+from snapshots import build_snapshots, import_intervals, module_presence, read_commit, source_change_filter
 
 TIMELINE_COMMITS = 15
 REVIEWS_KEPT = 5
@@ -109,8 +112,22 @@ def analyze(req: AnalyzeRequest):
             return _analyze(ws, rules)
     except workspace.AnalysisBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    except workspace.CloneError as exc:
+    except workspace.AnalysisCancelled as exc:
+        clear_repo_context()
+        raise HTTPException(status_code=409, detail=str(exc))
+    except (workspace.CloneError, UnsupportedRepo) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/analyze/status")
+def analyze_status():
+    """The running analysis: {running, repo_url, stage, detail, elapsed, cancelling}."""
+    return workspace.status()
+
+
+@app.post("/analyze/cancel")
+def analyze_cancel():
+    return {"cancelled": workspace.cancel()}
 
 
 class _Stopwatch:
@@ -128,16 +145,28 @@ class _Stopwatch:
 def _analyze(ws, rules: dict) -> dict:
     t0 = time.time()
     watch = _Stopwatch()
-    data = ast_extractor.parse_repo(ws.path)
+    workspace.report("Choosing what to analyze")
+    ws.scope = choose_scope(ws.path, ws.subdir)
+    workspace.report("Parsing the code", f"{ws.scope.files_included:,} source files")
+    # From git objects, like every history snapshot: the same files, and no
+    # first-read antivirus scan of thousands of freshly cloned files.
+    sources, configs = read_commit(ws.path, ws.head_sha, ws.scope.include_fn())
+    data = ast_extractor.parse_sources(sources, configs)
     parse_seconds = watch.lap("parse")
     apply_layers(data, rules)
+    workspace.check_cancelled()
 
+    workspace.report("Building the knowledge graph",
+                     f"{len(data['modules']):,} modules, {len(data['functions']):,} functions")
     clear_repo_context()
     loader.load_graph(data)
-    set_repo_context(ws.repo_url, ws.path, [m["path"] for m in data["modules"]], rules)
+    set_repo_context(ws.repo_url, ws.path, [m["path"] for m in data["modules"]], rules, contents=sources)
+    del sources
     nodes_loaded = loader.count_nodes()
     watch.lap("graph_load")
+    workspace.check_cancelled()
 
+    workspace.report("Checking the architecture rules")
     violations, total_applicable_rules = run_rule_engine(rules)
     violations.sort(key=violation_key)
     pure = evaluate(data, rules)
@@ -162,7 +191,10 @@ def _analyze(ws, rules: dict) -> dict:
     return {
         "analysis_id": ws.id,
         "repo_url": ws.repo_url,
+        "branch": ws.ref or git(ws.path, "rev-parse", "--abbrev-ref", "HEAD").strip(),
         "head_sha": ws.head_sha,
+        "scope": ws.scope.summary(),
+        "notices": ws.notices,
         "files_parsed": len(data["modules"]),
         "classes_found": len(data["classes"]),
         "functions_found": len(data["functions"]),
@@ -181,16 +213,26 @@ def _analyze(ws, rules: dict) -> dict:
 
 
 def _analyze_history(ws, session, data: dict, rules: dict, parse_seconds: float, watch) -> dict:
-    mined = mine_commits(ws.path)
+    workspace.report("Mining the git history")
+    mined = mine_commits(ws.path, subdir=ws.subdir)
     commits = mined["commits"]
     by_hash = {c["hash"]: c for c in commits}
     watch.lap("history_mining")
+    workspace.check_cancelled()
+
+    def on_snapshot(done, total):
+        workspace.check_cancelled()
+        workspace.report("Rebuilding the architecture at past commits", f"snapshot {done + 1} of {total}")
 
     snapshots = build_snapshots(ws.path, rules, data, parse_seconds,
                                 lambda sha: by_hash.get(sha) or commit_meta(ws.path, sha),
-                                eligible=source_change_filter(commits))
+                                eligible=source_change_filter(commits), include=ws.scope.include_fn(),
+                                max_snapshots=LARGE_REPO_SNAPSHOTS if ws.scope.large else None,
+                                on_snapshot=on_snapshot, subdir=ws.subdir)
     intervals = import_intervals(snapshots)
     watch.lap("snapshots")
+    workspace.check_cancelled()
+    workspace.report("Saving the history to the graph")
     current_paths = {m["path"] for m in data["modules"]}
     written = load_history(session, commits, snapshots, intervals, module_presence(snapshots),
                            introduced_at(commits), current_paths)
@@ -223,7 +265,7 @@ def documentation(ref: AnalysisRef):
         with workspace.use(ref.analysis_id) as ws:
             r = ws.results
             try:
-                path = cache.entry_path(ws.repo_url, ws.head_sha, "documentation", "docs", rules=r["rules"])
+                path = cache.entry_path(ws.key_url, ws.head_sha, "documentation", "docs", rules=r["rules"])
                 result, hit = cache.cached(
                     path, lambda: generate_documentation(ws.path, r["data"], r["violations_payload"], r["health"]),
                     cacheable=lambda value: not value["warnings"])
@@ -244,7 +286,7 @@ def violations_explain(ref: AnalysisRef):
         with workspace.use(ref.analysis_id) as ws:
             r = ws.results
             try:
-                return explain_violations(ws.repo_url, ws.head_sha, ws.path, r["rules"], r["data"],
+                return explain_violations(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
                                           r["history"]["snapshots"])
             except llm.LLMConfigError as exc:
                 return {"groups": [], "warnings": [str(exc)], "error": str(exc)}
@@ -260,7 +302,7 @@ def adrs(ref: AnalysisRef):
         with workspace.use(ref.analysis_id) as ws:
             r = ws.results
             try:
-                result = reconstruct(ws.repo_url, ws.head_sha, ws.path, r["rules"], r["data"],
+                result = reconstruct(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
                                      r["history"]["commits"], r["history"]["snapshots"], decisions=decisions_for(ws))
             except llm.LLMConfigError as exc:
                 return {"decisions": [], "detected": 0, "warnings": [str(exc)], "error": str(exc)}
@@ -313,8 +355,8 @@ def review(req: ReviewRequest):
     try:
         with workspace.use(req.analysis_id) as ws:
             r = ws.results
-            result = review_changes(ws.path, ws.repo_url, r["rules"], head=ws.head_sha, base=req.base,
-                                    commits=req.commits, head_data=r["data"])
+            result = review_changes(ws.path, ws.key_url, r["rules"], head=ws.head_sha, base=req.base,
+                                    commits=req.commits, head_data=r["data"], include=ws.scope.include_fn())
             reviews = r.setdefault("reviews", {})
             reviews[result["review_id"]] = result
             for old in list(reviews)[:-REVIEWS_KEPT]:

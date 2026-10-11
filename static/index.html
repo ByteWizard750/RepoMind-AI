@@ -159,6 +159,14 @@
     line-height: 1.6;
   }
   #loading { color: var(--text); background: var(--surface); }
+  .loading-row { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+  #loading-stage { font-weight: 700; }
+  #loading-elapsed { color: var(--text-dim); font-size: 0.78rem; }
+  #loading-detail { color: var(--text-dim); font-size: 0.78rem; overflow-wrap: anywhere; min-height: 1.2em; }
+  #cancel-btn { margin-left: auto; }
+  #error button.secondary { margin-top: 0.7rem; font-weight: 400; }
+  #scope-notice:empty { display: none; }
+  #scope-notice code { overflow-wrap: anywhere; }
   #error { color: var(--invert-text); background: var(--text); font-weight: 700; white-space: pre-wrap; }
 
   #results { display: none; }
@@ -612,10 +620,18 @@
     </div>
   </details>
 
-  <div id="loading">Cloning the repository, parsing it, building the graph and mining its history&hellip;</div>
+  <div id="loading" aria-live="polite">
+    <div class="loading-row">
+      <span id="loading-stage" class="pending active">Starting</span>
+      <span id="loading-elapsed"></span>
+      <button type="button" class="secondary" id="cancel-btn">Cancel</button>
+    </div>
+    <div id="loading-detail"></div>
+  </div>
   <div id="error" role="alert"></div>
 
   <div id="results">
+    <div id="scope-notice" class="notice"></div>
     <section>
       <h2>Overview <span class="h2-note" id="overview-note"></span></h2>
       <div class="stats">
@@ -754,6 +770,7 @@
   let mermaidCounter = 0;
 
   btn.addEventListener('click', analyze);
+  $('cancel-btn').addEventListener('click', cancelAnalysis);
   urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') analyze(); });
 
   function escapeHtml(s) {
@@ -833,6 +850,79 @@
   }
 
   // ---------- analysis ----------
+  // ---------- progress of the running analysis ----------
+  let statusTimer = null;
+
+  function showProgress(st) {
+    const cancelBtn = $('cancel-btn');
+    $('loading-stage').textContent = st && st.cancelling ? 'Cancelling' : ((st && st.stage) || 'Starting');
+    $('loading-detail').textContent = (st && st.detail) || '';
+    $('loading-elapsed').textContent = st && st.elapsed != null ? `${Math.round(st.elapsed)}s` : '';
+    cancelBtn.disabled = !!(st && st.cancelling);
+    cancelBtn.textContent = st && st.cancelling ? 'Cancelling…' : 'Cancel';
+  }
+
+  async function pollStatus() {
+    try {
+      const resp = await fetch('/analyze/status');
+      if (!resp.ok) return null;
+      const st = await resp.json();
+      if (st.running) showProgress(st);
+      return st;
+    } catch (e) { return null; }
+  }
+
+  function startProgress() {
+    showProgress(null);
+    loadingEl.style.display = 'block';
+    clearInterval(statusTimer);
+    statusTimer = setInterval(pollStatus, 1000);
+  }
+
+  function stopProgress() {
+    clearInterval(statusTimer);
+    statusTimer = null;
+    loadingEl.style.display = 'none';
+  }
+
+  async function cancelAnalysis() {
+    showProgress({ cancelling: true });
+    try { await postJson('/analyze/cancel', {}); } catch (e) { /* it may have just finished */ }
+  }
+
+  // An analysis left running (another tab, a closed page) blocks new ones; show it so it can be cancelled.
+  async function watchRunning() {
+    const st = await pollStatus();
+    if (!st || !st.running) return;
+    errorEl.style.display = 'none';
+    startProgress();
+    showProgress(st);
+    btn.disabled = true;
+    const wait = setInterval(async () => {
+      const now = await pollStatus();
+      if (now && !now.running) {
+        clearInterval(wait);
+        stopProgress();
+        btn.disabled = false;
+      }
+    }, 1000);
+  }
+  watchRunning();
+
+  function showError(message) {
+    errorEl.textContent = message;
+    if (/already running/i.test(message)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'secondary';
+      b.textContent = 'Show the running analysis';
+      b.addEventListener('click', watchRunning);
+      errorEl.appendChild(document.createElement('br'));
+      errorEl.appendChild(b);
+    }
+    errorEl.style.display = 'block';
+  }
+
   async function analyze() {
     const repoUrl = urlInput.value.trim();
     if (!repoUrl) return;
@@ -840,7 +930,7 @@
     btn.disabled = true;
     errorEl.style.display = 'none';
     resultsEl.style.display = 'none';
-    loadingEl.style.display = 'block';
+    startProgress();
     if (!askPanel.hidden) closeAsk();
     askToggle.hidden = true;
     current = null;
@@ -855,16 +945,47 @@
       resetChat(repoUrl);
       runGenerativeSections(data);
     } catch (err) {
-      errorEl.textContent = err.message || 'Analysis failed.';
-      errorEl.style.display = 'block';
+      showError(err.message || 'Analysis failed.');
     } finally {
-      loadingEl.style.display = 'none';
+      stopProgress();
       btn.disabled = false;
     }
   }
 
+  // What part of the repository was analyzed, and anything else worth knowing up front.
+  function renderScope(data) {
+    const sc = data.scope || {};
+    const items = [];
+    const repo = data.repo_url.replace(/\.git$/, '').replace(/\/$/, '');
+    const branch = data.branch || 'main';
+    const fmt = (n) => Number(n).toLocaleString();
+    if (sc.subdir) {
+      items.push(`Analyzed only the folder <code>${escapeHtml(sc.subdir)}</code> on branch <code>${escapeHtml(branch)}</code> (${fmt(sc.files_total)} source files).`);
+    }
+    if (sc.mode === 'large') {
+      const parts = [`<strong>Large repository:</strong> analyzed <strong>${fmt(sc.files_included)}</strong> of ${fmt(sc.files_total)} source files to keep the analysis fast.`];
+      const left = [];
+      if (sc.noise_skipped) left.push(`${fmt(sc.noise_skipped)} test, example, script and generated files`);
+      const skipped = sc.groups_skipped || [];
+      if (skipped.length) {
+        const shown = skipped.slice(0, 6).map((g) => `<code>${escapeHtml(g.group)}</code> (${fmt(g.files)})`).join(', ');
+        left.push(`the folders ${shown}${skipped.length > 6 ? ` and ${skipped.length - 6} more` : ''}`);
+      }
+      if (left.length) parts.push(`Left out: ${left.join('; ')}.`);
+      const example = skipped.find((g) => !g.group.endsWith('*'));
+      if (example) {
+        const url = `${repo}/tree/${branch}/${example.group}`;
+        parts.push(`To analyze a specific part, paste its folder URL, e.g. <code>${escapeHtml(url)}</code>`);
+      }
+      items.push(parts.join(' '));
+    }
+    for (const n of data.notices || []) items.push(escapeHtml(n));
+    $('scope-notice').innerHTML = items.length === 1 ? items[0] : (items.length ? `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>` : '');
+  }
+
   async function renderResults(data) {
     const h = data.history || {};
+    renderScope(data);
     $('stat-files').textContent = data.files_parsed;
     $('stat-classes').textContent = data.classes_found;
     $('stat-functions').textContent = data.functions_found;
@@ -1028,10 +1149,12 @@
     const plural = (n, word) => `<strong>${n}</strong> ${word}${n === 1 ? '' : 's'}`;
     const base = rng.empty_base ? '(start)' : commitLink(rng.base, rng.base_short);
     const skipped = r.files_skipped || [];
+    const withdrawn = r.rejected_on_check || [];
     $('review-status').innerHTML = `
       <p class="review-summary">Reviewed ${plural(rng.commits.length, 'commit')} (${base}..${commitLink(rng.head, rng.head_short)}),
-        ${plural(r.files_reviewed.length, 'file')}: ${plural(r.findings.length, 'finding')}${r.unverified ? ` · ${r.unverified} AI finding${r.unverified === 1 ? '' : 's'} dropped because ${r.unverified === 1 ? 'it' : 'they'} didn't match the changed lines` : ''}${(r.resolved || []).length ? ` · ${plural(r.resolved.length, 'rule violation')} resolved by these commits` : ''}${r.llm_calls_saved ? ` · ${r.llm_calls_saved} cached` : ''}</p>
+        ${plural(r.files_reviewed.length, 'file')}: ${plural(r.findings.length, 'finding')}${r.unverified ? ` · ${r.unverified} AI finding${r.unverified === 1 ? '' : 's'} dropped because ${r.unverified === 1 ? 'it' : 'they'} didn't match the changed lines` : ''}${withdrawn.length ? ` · ${withdrawn.length} withdrawn after a second look at the whole file` : ''}${(r.resolved || []).length ? ` · ${plural(r.resolved.length, 'rule violation')} resolved by these commits` : ''}${r.llm_calls_saved ? ` · ${r.llm_calls_saved} cached` : ''}</p>
       ${(r.warnings || []).length ? `<div class="notice">${r.warnings.map((w) => escapeHtml(w)).join('<br>')}</div>` : ''}
+      ${withdrawn.length ? `<details class="snippets"><summary>${withdrawn.length} AI finding${withdrawn.length === 1 ? '' : 's'} withdrawn on the double-check</summary><pre>${escapeHtml(withdrawn.map((f) => `${f.file}:${f.line} ${f.title} — ${f.reason}`).join('\n'))}</pre></details>` : ''}
       ${skipped.length ? `<details class="snippets"><summary>${skipped.length} file${skipped.length === 1 ? '' : 's'} not reviewed</summary><pre>${escapeHtml(skipped.map((f) => `${f.path} — ${f.reason}`).join('\n'))}</pre></details>` : ''}`;
     $('review-findings').innerHTML = r.findings.length
       ? r.findings.map((f) => findingCard(f, items.get(f.fingerprint), gh.can_raise, rng.head)).join('')

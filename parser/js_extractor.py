@@ -52,24 +52,39 @@ def parse_repo(repo_path: str) -> dict:
     return build(repo_path, raw_files)
 
 
-def parse_family(repo_path: str) -> dict:
+def parse_family(repo_path: str, include=None) -> dict:
     """JavaScript and TypeScript files parsed and resolved as one module
     graph (mixed codebases import across the two freely)."""
     from parser import ts_extractor  # ts_extractor imports this module
 
     parser = Parser(JS_LANGUAGE)
-    raw_files = {rel: extract_source(parser, abs_path) for rel, abs_path in iter_files(repo_path, _EXTENSIONS)}
-    raw_files.update(ts_extractor.extract_repo(repo_path))
+    raw_files = {rel: extract_source(parser, abs_path)
+                 for rel, abs_path in iter_files(repo_path, _EXTENSIONS, include)}
+    raw_files.update(ts_extractor.extract_repo(repo_path, include))
     return build(repo_path, raw_files)
+
+
+def parse_family_sources(sources: dict, configs: list) -> dict:
+    """parse_family from file contents already in memory ({rel_path: bytes},
+    e.g. read straight from git) with already-loaded tsconfig paths."""
+    from parser import ts_extractor
+
+    parser = Parser(JS_LANGUAGE)
+    raw_files = {rel: extract_bytes(parser, src) for rel, src in sorted(sources.items()) if rel.endswith(_EXTENSIONS)}
+    raw_files.update(ts_extractor.extract_sources(sources))
+    return build(None, raw_files, configs)
 
 
 def language_of(path: str) -> str:
     return "typescript" if path.endswith(_TS_FAMILY) else "javascript"
 
 
-def build(repo_path: str, raw_files: dict) -> dict:
-    """Assemble graph data from per-file extraction results."""
-    resolver = ModuleResolver(set(raw_files), tsconfig.load_path_configs(repo_path))
+def build(repo_path, raw_files: dict, configs: list = None) -> dict:
+    """Assemble graph data from per-file extraction results. Path aliases
+    come from `configs`, or from the tsconfigs under repo_path."""
+    if configs is None:
+        configs = tsconfig.load_path_configs(repo_path)
+    resolver = ModuleResolver(set(raw_files), configs)
 
     modules = [{"path": path, "language": language_of(path), "layer_type": None} for path in raw_files]
     classes = [
@@ -95,19 +110,23 @@ def build(repo_path: str, raw_files: dict) -> dict:
     }
 
 
-def iter_files(repo_path: str, extensions: tuple):
+def iter_files(repo_path: str, extensions: tuple, include=None):
     for root, dirs, files in os.walk(repo_path):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
         for name in files:
             if name.endswith(extensions):
                 abs_path = os.path.join(root, name)
                 rel_path = os.path.relpath(abs_path, repo_path).replace(os.sep, "/")
-                yield rel_path, abs_path
+                if include is None or include(rel_path):
+                    yield rel_path, abs_path
 
 
 def extract_source(parser: Parser, abs_path: str) -> dict:
     with open(abs_path, "rb") as f:
-        source = f.read()
+        return extract_bytes(parser, f.read())
+
+
+def extract_bytes(parser: Parser, source: bytes) -> dict:
     return _extract_file(parser.parse(source).root_node)
 
 

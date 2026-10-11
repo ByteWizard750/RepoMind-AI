@@ -33,17 +33,30 @@ _TS_EXTENSIONS = (".ts",)
 _TSX_EXTENSIONS = (".tsx",)
 
 
-def extract_repo(repo_path: str) -> dict:
+def extract_repo(repo_path: str, include=None) -> dict:
     """Per-file extraction results for every .ts/.tsx file (declaration
     files excluded: they describe code, they aren't code)."""
     ts_parser = Parser(TS_LANGUAGE)
     tsx_parser = Parser(TSX_LANGUAGE)
     raw_files = {}
-    for rel_path, abs_path in js_extractor.iter_files(repo_path, _TS_EXTENSIONS):
+    for rel_path, abs_path in js_extractor.iter_files(repo_path, _TS_EXTENSIONS, include):
         if not rel_path.endswith(".d.ts"):
             raw_files[rel_path] = js_extractor.extract_source(ts_parser, abs_path)
-    for rel_path, abs_path in js_extractor.iter_files(repo_path, _TSX_EXTENSIONS):
+    for rel_path, abs_path in js_extractor.iter_files(repo_path, _TSX_EXTENSIONS, include):
         raw_files[rel_path] = js_extractor.extract_source(tsx_parser, abs_path)
+    return raw_files
+
+
+def extract_sources(sources: dict) -> dict:
+    """extract_repo for file contents in memory ({rel_path: bytes})."""
+    ts_parser = Parser(TS_LANGUAGE)
+    tsx_parser = Parser(TSX_LANGUAGE)
+    raw_files = {}
+    for rel_path, src in sorted(sources.items()):
+        if rel_path.endswith(".ts") and not rel_path.endswith(".d.ts"):
+            raw_files[rel_path] = js_extractor.extract_bytes(ts_parser, src)
+        elif rel_path.endswith(".tsx"):
+            raw_files[rel_path] = js_extractor.extract_bytes(tsx_parser, src)
     return raw_files
 
 

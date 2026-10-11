@@ -132,3 +132,43 @@ def test_tool_budget_ends_in_synthesis(history_graph, monkeypatch):
     assert len(result["evidence"]) == qa.MAX_TOOL_ROUNDS
     assert calls[-1] is None                       # the final call offered no tools at all
     assert result["answer"].startswith("Best effort answer.")
+
+
+@pytest.mark.parametrize("text, plan", [
+    ("We need to call read_source for users router.We need to call read_source.", True),
+    ("Let's do it. Now call for product_service.", True),
+    ("First, I need to check the users router.", True),
+    ("**Routers that talk to the database directly**\n\n| Router | Import |", False),
+    ("You can use the get_module_details tool output: products.py imports the repository.", False),
+    ("Two routers do. I will list them: products.py and users.py.", False),
+    ("", False),
+])
+def test_looks_like_plan(text, plan):
+    assert qa_graph.looks_like_plan(text) is plan
+
+
+def _graph_with_answers(monkeypatch, answers):
+    replies = iter(answers)
+    calls = []
+
+    def chat(messages, **kwargs):
+        calls.append(kwargs)
+        return llm.ChatResult(content=next(replies), tool_calls=[], finish_reason="stop", provider="fake")
+
+    monkeypatch.setattr(qa_graph.llm, "chat", chat)
+    state = qa_graph.QA_GRAPH.invoke({"question": "Which routers use the database?", "history": [], "session": None,
+                                      "sources": {}, "repo_url": "local:x", "evidence": []})
+    return state["answer"], calls
+
+
+def test_a_plan_instead_of_an_answer_is_asked_again(monkeypatch):
+    answer, calls = _graph_with_answers(monkeypatch, [
+        "We need to call read_source for the users router.",
+        "Two routers do: products.py and users.py. **Confidence:** High — from the rule check."])
+    assert answer.startswith("Two routers do") and len(calls) == 2
+    assert "tools" not in calls[1] or not calls[1]["tools"]          # the second ask offers no tools
+
+
+def test_a_second_plan_is_not_shown_as_an_answer(monkeypatch):
+    answer, _ = _graph_with_answers(monkeypatch, ["We need to call read_source.", "Let's call search_entities first."])
+    assert answer.startswith(qa_graph.NOT_ANSWERED)
