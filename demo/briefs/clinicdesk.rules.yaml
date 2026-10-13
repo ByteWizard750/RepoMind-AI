@@ -1,0 +1,117 @@
+# ClinicDesk architecture rules (RepoMind format) — hexagonal / clean architecture.
+#
+#   api ──► application ──► domain ◄── infrastructure
+#                 ▲                         │
+#                 └──────── ports ◄─────────┘
+#
+# The domain is pure: it depends on nothing else in the app. Use cases
+# (application) talk to the outside world only through ports (abstract
+# interfaces in app/application/ports/); infrastructure implements those
+# ports. Only the composition root (app/main.py, app/bootstrap/) wires
+# concrete adapters to use cases, so it has no layer and is never judged.
+pattern: hexagonal
+
+layers:
+  api:
+    - glob: "app/api/*"
+  application:
+    - glob: "app/application/*"
+  domain:
+    - glob: "app/domain/*"
+  infrastructure:
+    - glob: "app/infrastructure/*"
+
+ignore:
+  - dir: tests
+  - dir: test
+  - file: "test_*.py"
+  - file: "*_test.py"
+  - file: conftest.py
+  - dir: migrations
+  - dir: alembic
+  - dir: scripts
+
+rules:
+  # 1. The domain is pure.
+  - name: domain-calls-infrastructure
+    from_layer: domain
+    to_layer: infrastructure
+    allowed: false
+    severity: 4
+  - name: domain-imports-infrastructure
+    edge: imports
+    from_layer: domain
+    to_layer: infrastructure
+    allowed: false
+    severity: 4
+  - name: domain-imports-application
+    edge: imports
+    from_layer: domain
+    to_layer: application
+    allowed: false
+    severity: 3
+  - name: domain-imports-api
+    edge: imports
+    from_layer: domain
+    to_layer: api
+    allowed: false
+    severity: 3
+  # 2. Dependency inversion: use cases depend on ports, never on adapters.
+  - name: application-calls-infrastructure
+    from_layer: application
+    to_layer: infrastructure
+    allowed: false
+    severity: 3
+  - name: application-imports-infrastructure
+    edge: imports
+    from_layer: application
+    to_layer: infrastructure
+    allowed: false
+    severity: 3
+  - name: application-imports-api
+    edge: imports
+    from_layer: application
+    to_layer: api
+    allowed: false
+    severity: 2
+  # 3. The HTTP layer only drives use cases.
+  - name: api-calls-infrastructure
+    from_layer: api
+    to_layer: infrastructure
+    allowed: false
+    severity: 3
+  - name: api-imports-infrastructure
+    edge: imports
+    from_layer: api
+    to_layer: infrastructure
+    allowed: false
+    severity: 2
+  # 4. Adapters never reach back into the HTTP layer.
+  - name: infrastructure-imports-api
+    edge: imports
+    from_layer: infrastructure
+    to_layer: api
+    allowed: false
+    severity: 2
+  # The intended directions (documented; not checked).
+  - name: api-to-application
+    from_layer: api
+    to_layer: application
+    allowed: true
+    severity: 0
+  - name: application-to-domain
+    from_layer: application
+    to_layer: domain
+    allowed: true
+    severity: 0
+  - name: infrastructure-implements-ports
+    edge: imports
+    from_layer: infrastructure
+    to_layer: application
+    allowed: true
+    severity: 0
+  - name: infrastructure-to-domain
+    from_layer: infrastructure
+    to_layer: domain
+    allowed: true
+    severity: 0

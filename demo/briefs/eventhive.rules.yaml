@@ -1,0 +1,241 @@
+# EventHive architecture rules (RepoMind format) — modular monolith.
+#
+# Four business modules under src/modules/: catalog, ticketing, payments,
+# notifications. Each module's ONLY public surface is its public.ts: plain
+# exported functions and types (not re-exports, so calls resolve to it).
+# Another module may import and call a module's public.ts, but never its
+# internals (controllers, services, repositories, domain files).
+#
+#   ticketing ──► payments/public.ts      allowed
+#   ticketing ──► payments/stripe.gateway forbidden
+#
+# shared/ is a small kernel (Money, Result, errors, the event bus) that every
+# module may use; it must never depend on a module. platform/ (HTTP server,
+# Prisma client, logger, config, queues) is generic infrastructure every
+# module may use; it must not know about modules either. src/main.ts and
+# src/app.ts are the composition root: no layer, never judged.
+pattern: modular-monolith
+
+layers:
+  # Listed first: the glob step tries layers in this order, so a module's
+  # public.ts is "module_api", not part of that module's internals.
+  module_api:
+    - glob: "src/modules/*/public.ts"
+  catalog:
+    - glob: "src/modules/catalog/*"
+  ticketing:
+    - glob: "src/modules/ticketing/*"
+  payments:
+    - glob: "src/modules/payments/*"
+  notifications:
+    - glob: "src/modules/notifications/*"
+  shared:
+    - glob: "src/shared/*"
+  platform:
+    - glob: "src/platform/*"
+
+ignore:
+  - dir: tests
+  - dir: __tests__
+  - dir: test
+  - file: "*.test.ts"
+  - file: "*.spec.ts"
+  - dir: prisma
+  - dir: scripts
+
+rules:
+  # 1. Modules talk to each other only through public.ts.
+  - name: catalog-calls-ticketing-internals
+    from_layer: catalog
+    to_layer: ticketing
+    allowed: false
+    severity: 3
+  - name: catalog-imports-ticketing-internals
+    edge: imports
+    from_layer: catalog
+    to_layer: ticketing
+    allowed: false
+    severity: 2
+  - name: catalog-calls-payments-internals
+    from_layer: catalog
+    to_layer: payments
+    allowed: false
+    severity: 3
+  - name: catalog-imports-payments-internals
+    edge: imports
+    from_layer: catalog
+    to_layer: payments
+    allowed: false
+    severity: 2
+  - name: catalog-calls-notifications-internals
+    from_layer: catalog
+    to_layer: notifications
+    allowed: false
+    severity: 3
+  - name: catalog-imports-notifications-internals
+    edge: imports
+    from_layer: catalog
+    to_layer: notifications
+    allowed: false
+    severity: 2
+  - name: ticketing-calls-catalog-internals
+    from_layer: ticketing
+    to_layer: catalog
+    allowed: false
+    severity: 3
+  - name: ticketing-imports-catalog-internals
+    edge: imports
+    from_layer: ticketing
+    to_layer: catalog
+    allowed: false
+    severity: 2
+  - name: ticketing-calls-payments-internals
+    from_layer: ticketing
+    to_layer: payments
+    allowed: false
+    severity: 3
+  - name: ticketing-imports-payments-internals
+    edge: imports
+    from_layer: ticketing
+    to_layer: payments
+    allowed: false
+    severity: 2
+  - name: ticketing-calls-notifications-internals
+    from_layer: ticketing
+    to_layer: notifications
+    allowed: false
+    severity: 3
+  - name: ticketing-imports-notifications-internals
+    edge: imports
+    from_layer: ticketing
+    to_layer: notifications
+    allowed: false
+    severity: 2
+  - name: payments-calls-catalog-internals
+    from_layer: payments
+    to_layer: catalog
+    allowed: false
+    severity: 3
+  - name: payments-imports-catalog-internals
+    edge: imports
+    from_layer: payments
+    to_layer: catalog
+    allowed: false
+    severity: 2
+  - name: payments-calls-ticketing-internals
+    from_layer: payments
+    to_layer: ticketing
+    allowed: false
+    severity: 3
+  - name: payments-imports-ticketing-internals
+    edge: imports
+    from_layer: payments
+    to_layer: ticketing
+    allowed: false
+    severity: 2
+  - name: payments-calls-notifications-internals
+    from_layer: payments
+    to_layer: notifications
+    allowed: false
+    severity: 3
+  - name: payments-imports-notifications-internals
+    edge: imports
+    from_layer: payments
+    to_layer: notifications
+    allowed: false
+    severity: 2
+  - name: notifications-calls-catalog-internals
+    from_layer: notifications
+    to_layer: catalog
+    allowed: false
+    severity: 3
+  - name: notifications-imports-catalog-internals
+    edge: imports
+    from_layer: notifications
+    to_layer: catalog
+    allowed: false
+    severity: 2
+  - name: notifications-calls-ticketing-internals
+    from_layer: notifications
+    to_layer: ticketing
+    allowed: false
+    severity: 3
+  - name: notifications-imports-ticketing-internals
+    edge: imports
+    from_layer: notifications
+    to_layer: ticketing
+    allowed: false
+    severity: 2
+  - name: notifications-calls-payments-internals
+    from_layer: notifications
+    to_layer: payments
+    allowed: false
+    severity: 3
+  - name: notifications-imports-payments-internals
+    edge: imports
+    from_layer: notifications
+    to_layer: payments
+    allowed: false
+    severity: 2
+  # 2. The shared kernel must not depend on any module (not even a public API).
+  - name: shared-imports-catalog
+    edge: imports
+    from_layer: shared
+    to_layer: catalog
+    allowed: false
+    severity: 3
+  - name: shared-imports-ticketing
+    edge: imports
+    from_layer: shared
+    to_layer: ticketing
+    allowed: false
+    severity: 3
+  - name: shared-imports-payments
+    edge: imports
+    from_layer: shared
+    to_layer: payments
+    allowed: false
+    severity: 3
+  - name: shared-imports-notifications
+    edge: imports
+    from_layer: shared
+    to_layer: notifications
+    allowed: false
+    severity: 3
+  - name: shared-imports-module-apis
+    edge: imports
+    from_layer: shared
+    to_layer: module_api
+    allowed: false
+    severity: 3
+  # 3. Platform code is generic infrastructure: it must not know about modules.
+  - name: platform-imports-catalog
+    edge: imports
+    from_layer: platform
+    to_layer: catalog
+    allowed: false
+    severity: 2
+  - name: platform-imports-ticketing
+    edge: imports
+    from_layer: platform
+    to_layer: ticketing
+    allowed: false
+    severity: 2
+  - name: platform-imports-payments
+    edge: imports
+    from_layer: platform
+    to_layer: payments
+    allowed: false
+    severity: 2
+  - name: platform-imports-notifications
+    edge: imports
+    from_layer: platform
+    to_layer: notifications
+    allowed: false
+    severity: 2
+  - name: platform-imports-module-apis
+    edge: imports
+    from_layer: platform
+    to_layer: module_api
+    allowed: false
+    severity: 2

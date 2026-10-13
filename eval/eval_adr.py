@@ -169,13 +169,17 @@ def evaluate_repo(url: str, synthesize: bool, per_repo: int) -> dict:
             "sensitivity": sensitivity(matched[:10], commits, usage, head["imports"], excluded) if matched else {},
         }
         if synthesize and matched:
+            from adr.pull_requests import PullRequestSource
             from agents.adr_graph import reconstruct_one
+            # Pull request text that mentions a masked ADR folder is withheld, so it can't leak the answer.
+            prs = PullRequestSource(url, root, exclude_paths=exclude)
             reconstructions = []
             for r in [r for r in rows if r["strict"]][:per_repo]:
                 adr, warnings, _ = reconstruct_one(url, commits[-1]["hash"], root, RULES, head, commits, r["strict"],
-                                                   usage, tuple(exclude))
+                                                   usage, tuple(exclude), pr_source=prs)
                 reconstructions.append({"real": r["adr"], "reconstructed": adr, "warnings": warnings})
             result["reconstructions"] = reconstructions
+            result["pull_requests"] = prs.status()
         return result
     finally:
         remove_tree(root)
@@ -196,7 +200,10 @@ def rubric(results: list) -> str:
                    f"{rec['confidence_label']}): **{rec['title']}**", "",
                    f"- Decision: {rec['decision']}", f"- Context: {rec['context']}",
                    f"- Inference: {rec['inference']}",
-                   f"- Evidence: {', '.join(e['short'] for e in rec['evidence'])}", "",
+                   f"- Evidence: {', '.join(e['short'] for e in rec['evidence'])}",
+                   f"- Pull requests / issues read: " + (", ".join(
+                       f"#{p['number']} {p['title']}" for e in rec["evidence"] for p in e.get("pull_requests", []))
+                       or "none"), "",
                    "| Accuracy (1-5) | Completeness (1-5) | Hallucination (y/n) | Scorer | Notes |",
                    "|---|---|---|---|---|", "|  |  |  |  |  |", ""]
     return "\n".join(md)
@@ -267,6 +274,15 @@ def main():
                f"{sum(1 for a in attempts if a > 1)}/{len(recs)}; records with unsupported mentions flagged: {flagged}; "
                f"fallbacks (no usable synthesis): {fallback}. Cited commits outside the evidence remaining after "
                f"validation: 0 by construction (they are removed or trigger a retry).", "",
+               f"Pull request and issue text: {sum(1 for p in recs if p['reconstructed'].get('pull_request_lookup', {}).get('linked'))}"
+               f"/{len(recs)} reconstructions had some attached to their evidence; "
+               f"{sum(1 for p in recs if p['reconstructed']['validation'].get('pull_requests_named'))} named one in the "
+               f"record. " + "; ".join(
+                   f"{r['repo'].replace('https://github.com/', '')}: {r['pull_requests']['fetched']} fetched, "
+                   f"{r['pull_requests']['from_cache']} from cache, {r['pull_requests']['withheld']} withheld for "
+                   f"mentioning the masked ADR folders"
+                   + (f", lookup stopped ({r['pull_requests']['stopped']})" if r['pull_requests']['stopped'] else "")
+                   for r in ok if r.get("pull_requests")) + ".", "",
                "Human scores (accuracy, completeness, hallucination) go in `adr_rubric.md`.", ""]
         with open(os.path.join(RESULTS, "adr_rubric.md"), "w", encoding="utf-8") as f:
             f.write(rubric(ok))

@@ -229,7 +229,7 @@ demonstrated caching/concurrency need arises.)*
 3. **Architecture Analysis Engine** — deterministic rules,
    violations, drift scoring. *(Priority)* **[DONE — including the drift curve over history]**
 4. **Historical Intelligence Engine** — Git/PR mining, evidence
-   correlation, ADR synthesis. *(Priority)* **[DONE — Git mining, relevance scoring, ADR synthesis; PR mining not built]**
+   correlation, ADR synthesis. *(Priority)* **[DONE — Git mining, relevance scoring, ADR synthesis, pull request and issue text as evidence]**
 5. **AI Reasoning & Delivery** — LangGraph orchestration (drift,
    ADR, and Q&A agents), API, dashboard with chat panel. **[DONE — plain HTML/JS dashboard instead of React]**
 
@@ -275,7 +275,7 @@ the target, it was a deliberate choice:
 | GPT-4o / Gemini Pro | `gpt-oss-120b` on Amazon Bedrock (default) or Groq, through `llm.py` | Availability and cost; the provider is a setting |
 | PyDriller + GitHub REST API | One streamed `git log` inside every analysis (`mine_history.py` keeps the PyDriller CLI); the GitHub API is used for the pre-clone check and for issues | About 10× faster than PyDriller's per-commit diffs on Windows |
 | Versioned edges per commit (`valid_from_commit`/`valid_to_commit`) | Import intervals between up to 20 evenly spaced history snapshots | Parsing every commit is too slow for real histories; snapshots are enough for the drift curve and time travel |
-| `PullRequest` nodes, PR text as ADR evidence | Not built: ADR evidence is commits and their diffs | Left out of scope in the Completion phase |
+| `PullRequest` nodes, PR text as ADR evidence | PR and issue text is attached to the ADR evidence commits (no `PullRequest` nodes in Neo4j) | The text is what improves the records; see the last Implementation Scope section |
 | Full vs. incremental analysis | Results cached per repository, commit, rules, prompt version and model — re-analysis makes zero LLM calls; parsing itself is not incremental | Deterministic analysis already takes seconds |
 | Java | Not supported (Python, JavaScript, TypeScript) | Out of scope from Phase 6 |
 
@@ -1794,3 +1794,58 @@ places.
 - In the browser on fastapi-realworld: every number matches the Overview and
   the Graph tab; one real question was counted (3 calls, 6,546 tokens in);
   cached sections show 0 calls; both pages fit phone width.
+
+## Implementation Scope — Pull request and issue text as ADR evidence
+
+The one unbuilt item of section 7 ("nearby commits/diffs/PR text"). Commit
+messages rarely say why; the pull request a commit came from often does.
+
+### What was built
+- `adr/pull_requests.py` (`PullRequestSource`): for the commits chosen as a
+  decision's evidence, finds the pull requests and issues behind them — from
+  the merge commits history mining leaves out ("Merge pull request #N": the
+  commits between its parents belong to #N, read with git only for merges near
+  the evidence), from squash-merge subjects ("… (#N)") and from references in
+  messages ("Fixes #N") — and fetches title and description from the GitHub
+  API (`/issues/{n}` covers both). HTML comments and images are stripped and
+  text is cut to 1,200 characters. Responses are cached on disk for 30 days;
+  at most 12 requests per analysis without `GITHUB_TOKEN`, `ADR_PR_MAX_FETCH`
+  (60) with it; rate limits, network errors and non-GitHub repositories just
+  mean no text. `ADR_PR_LOOKUP=0` turns it off.
+- ADR agent: a `link` step between scoring and the evidence payload; each
+  evidence commit carries its pull requests in the prompt (as data); the
+  prompt allows reporting a reason as *stated* only when that text states it,
+  naming the pull request; the validator sends back a record that names a pull
+  request or issue it wasn't given; rationale words in the text count toward
+  the confidence cap; evidence entries and the record carry the links
+  (`pull_requests`, `pull_request_lookup`), shown on the decision cards.
+- A record whose lookup was cut short (cap, rate limit) isn't cached, so it is
+  rebuilt with the text next time; the response warns and suggests a token.
+- Evaluation leakage: text that mentions a masked ADR folder is withheld (the
+  benchmark hides the real ADRs, and a pull request may restate one).
+
+### Results, measured
+- **ADR benchmark** (log4brains, adr-viewer, mcp-plex; no token): 1 of 7
+  reconstructions had pull request text attached. log4brains' matched
+  decisions sit on its initial import and adr-viewer's commits reference no
+  pull requests; mcp-plex reached the 12-request cap and one description was
+  withheld for mentioning the masked ADR folder. The text found (test
+  coverage, a version bump) carried no rationale. Decision-point recall is
+  unchanged by design (detection doesn't use the text).
+- **fastapi-realworld** (squash merges): 4 of 8 records got pull request text
+  with 3 requests; where the text says something the record now rests on it
+  ("the pull request description explicitly mentions the CI change") instead of
+  a guess, but the descriptions are short and the explanations and confidence
+  changed little. The model did not name pull requests by number even when
+  using them.
+- So the effect depends on the repository: it helps where pull requests carry
+  real descriptions (the common case in team projects), and does nothing where
+  history has no pull requests. The human rubric is the measure of whether the
+  records got better.
+
+### Verification
+- `tests/test_pull_requests.py`: message references; mapping through a real
+  `--no-ff` merge; fetching through a fake GitHub (pull request, missing
+  number, rate limit, cap, token header, disk cache); withholding; no lookup
+  outside GitHub. `tests/test_adr.py`: the text reaches the prompt and the
+  record, an unattached number is sent back, an incomplete lookup isn't cached.

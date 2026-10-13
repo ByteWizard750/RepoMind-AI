@@ -301,12 +301,17 @@
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
             ],
-            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
-            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
-            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
-            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, \u2026)",
+            "context": "In September\u202f2020 the repository was created as a monorepo using Yarn workspaces. The team needed a set of libraries for testing, validation, server runtime, and the web front\u2011end, as well as tooling for building and linting the codebase.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript and related tooling.",
+            "consequences": "All subsequent packages in the monorepo reference these dependencies, enabling unit tests with chai/jest, schema validation with joi, server development with nodemon, and a React/Next front\u2011end. The choice locked the project into a TypeScript\u2011centric workflow and required maintaining the listed runtime and build tools. Future changes to the stack would need to migrate existing code and scripts that depend on these packages.",
             "alternatives": "",
-            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "inference": "The decision appears to be driven by a desire for a full\u2011stack TypeScript monorepo with a clear separation of concerns: React/Next for the UI, Node.js with nodemon for the server, and mature testing/validation tools (chai, jest, joi). The inclusion of ts-node and TypeScript suggests the team wanted static typing across the codebase. This inference is based on the combination of packages introduced in the initial commit.",
             "evidence": [
               {
                 "short": "03550dc",
@@ -321,18 +326,20 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+                "shows": "Adds a new package.json with the listed dependencies (chai, jest, joi, next, nodemon, react, etc.) and workspace scripts, establishing the initial stack.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.3,
             "confidence_label": "Low",
-            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "confidence_reason": "The single commit explicitly lists all chosen packages, directly evidencing the stack decision. (Capped at 0.3 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.86,
               "cap": 0.3,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
@@ -414,12 +421,17 @@
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
             ],
-            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
-            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
-            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
-            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, \u2026)",
+            "context": "In September\u202f2020 the repository was created as a monorepo using Yarn workspaces. The team needed a set of libraries for testing, validation, server runtime, and the web front\u2011end, as well as tooling for building and linting the codebase.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript and related tooling.",
+            "consequences": "All subsequent packages in the monorepo reference these dependencies, enabling unit tests with chai/jest, schema validation with joi, server development with nodemon, and a React/Next front\u2011end. The choice locked the project into a TypeScript\u2011centric workflow and required maintaining the listed runtime and build tools. Future changes to the stack would need to migrate existing code and scripts that depend on these packages.",
             "alternatives": "",
-            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "inference": "The decision appears to be driven by a desire for a full\u2011stack TypeScript monorepo with a clear separation of concerns: React/Next for the UI, Node.js with nodemon for the server, and mature testing/validation tools (chai, jest, joi). The inclusion of ts-node and TypeScript suggests the team wanted static typing across the codebase. This inference is based on the combination of packages introduced in the initial commit.",
             "evidence": [
               {
                 "short": "03550dc",
@@ -434,18 +446,20 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+                "shows": "Adds a new package.json with the listed dependencies (chai, jest, joi, next, nodemon, react, etc.) and workspace scripts, establishing the initial stack.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.3,
             "confidence_label": "Low",
-            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "confidence_reason": "The single commit explicitly lists all chosen packages, directly evidencing the stack decision. (Capped at 0.3 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.86,
               "cap": 0.3,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
@@ -527,12 +541,17 @@
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
             ],
-            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
-            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
-            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
-            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, \u2026)",
+            "context": "In September\u202f2020 the repository was created as a monorepo using Yarn workspaces. The team needed a set of libraries for testing, validation, server runtime, and the web front\u2011end, as well as tooling for building and linting the codebase.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript and related tooling.",
+            "consequences": "All subsequent packages in the monorepo reference these dependencies, enabling unit tests with chai/jest, schema validation with joi, server development with nodemon, and a React/Next front\u2011end. The choice locked the project into a TypeScript\u2011centric workflow and required maintaining the listed runtime and build tools. Future changes to the stack would need to migrate existing code and scripts that depend on these packages.",
             "alternatives": "",
-            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "inference": "The decision appears to be driven by a desire for a full\u2011stack TypeScript monorepo with a clear separation of concerns: React/Next for the UI, Node.js with nodemon for the server, and mature testing/validation tools (chai, jest, joi). The inclusion of ts-node and TypeScript suggests the team wanted static typing across the codebase. This inference is based on the combination of packages introduced in the initial commit.",
             "evidence": [
               {
                 "short": "03550dc",
@@ -547,18 +566,20 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+                "shows": "Adds a new package.json with the listed dependencies (chai, jest, joi, next, nodemon, react, etc.) and workspace scripts, establishing the initial stack.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.3,
             "confidence_label": "Low",
-            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "confidence_reason": "The single commit explicitly lists all chosen packages, directly evidencing the stack decision. (Capped at 0.3 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.86,
               "cap": 0.3,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
@@ -640,12 +661,17 @@
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
             ],
-            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
-            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
-            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
-            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, \u2026)",
+            "context": "In September\u202f2020 the repository was created as a monorepo using Yarn workspaces. The team needed a set of libraries for testing, validation, server runtime, and the web front\u2011end, as well as tooling for building and linting the codebase.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript and related tooling.",
+            "consequences": "All subsequent packages in the monorepo reference these dependencies, enabling unit tests with chai/jest, schema validation with joi, server development with nodemon, and a React/Next front\u2011end. The choice locked the project into a TypeScript\u2011centric workflow and required maintaining the listed runtime and build tools. Future changes to the stack would need to migrate existing code and scripts that depend on these packages.",
             "alternatives": "",
-            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "inference": "The decision appears to be driven by a desire for a full\u2011stack TypeScript monorepo with a clear separation of concerns: React/Next for the UI, Node.js with nodemon for the server, and mature testing/validation tools (chai, jest, joi). The inclusion of ts-node and TypeScript suggests the team wanted static typing across the codebase. This inference is based on the combination of packages introduced in the initial commit.",
             "evidence": [
               {
                 "short": "03550dc",
@@ -660,18 +686,20 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+                "shows": "Adds a new package.json with the listed dependencies (chai, jest, joi, next, nodemon, react, etc.) and workspace scripts, establishing the initial stack.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.3,
             "confidence_label": "Low",
-            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "confidence_reason": "The single commit explicitly lists all chosen packages, directly evidencing the stack decision. (Capped at 0.3 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.86,
               "cap": 0.3,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
@@ -753,12 +781,17 @@
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.stories.tsx",
               "packages/web/nextjs/src/scenes/IndexScene/IndexScene.tsx"
             ],
-            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, etc.)",
-            "context": "The repository was initialized as a monorepo with workspaces for multiple packages. The team needed a full\u2011stack web framework, testing tools, validation, and build tooling. The initial commit adds a package.json defining scripts and a set of dependencies covering those needs. The evidence shows the stack was chosen at project start.",
-            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling.",
-            "consequences": "All subsequent packages in the monorepo rely on these dependencies, enabling TypeScript development, server\u2011side rendering with Next, React UI, real\u2011time communication via socket.io, and testing with both chai and jest. The presence of both chai and jest introduces overlapping testing capabilities, which may increase maintenance overhead. The monorepo setup and scripts (lerna, workspaces) shape the build and CI processes.",
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Adopt initial technology stack (chai, jest, joi, next, nodemon, react, \u2026)",
+            "context": "In September\u202f2020 the repository was created as a monorepo using Yarn workspaces. The team needed a set of libraries for testing, validation, server runtime, and the web front\u2011end, as well as tooling for building and linting the codebase.",
+            "decision": "The project adopted a stack consisting of chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript and related tooling.",
+            "consequences": "All subsequent packages in the monorepo reference these dependencies, enabling unit tests with chai/jest, schema validation with joi, server development with nodemon, and a React/Next front\u2011end. The choice locked the project into a TypeScript\u2011centric workflow and required maintaining the listed runtime and build tools. Future changes to the stack would need to migrate existing code and scripts that depend on these packages.",
             "alternatives": "",
-            "inference": "I infer that the developers selected this stack to provide a comprehensive, TypeScript\u2011first development environment covering front\u2011end (React/Next), back\u2011end (nodemon, socket.io), validation (joi), and testing (chai, jest) while using a monorepo structure for modularity. The inclusion of both chai and jest suggests they wanted flexibility or were transitioning between testing frameworks. The choice of lerna and workspaces indicates a desire for coordinated builds across multiple packages.",
+            "inference": "The decision appears to be driven by a desire for a full\u2011stack TypeScript monorepo with a clear separation of concerns: React/Next for the UI, Node.js with nodemon for the server, and mature testing/validation tools (chai, jest, joi). The inclusion of ts-node and TypeScript suggests the team wanted static typing across the codebase. This inference is based on the combination of packages introduced in the initial commit.",
             "evidence": [
               {
                 "short": "03550dc",
@@ -773,24 +806,36 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds a new package.json with workspaces and installs chai, jest, joi, next, nodemon, react, socket.io, ts-node, typescript, and related tooling."
+                "shows": "Adds a new package.json with the listed dependencies (chai, jest, joi, next, nodemon, react, etc.) and workspace scripts, establishing the initial stack.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.3,
             "confidence_label": "Low",
-            "confidence_reason": "The decision is directly visible in the manifest diff of the single commit, providing strong evidence. (Capped at 0.3 by evidence quality.)",
+            "confidence_reason": "The single commit explicitly lists all chosen packages, directly evidencing the stack decision. (Capped at 0.3 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.86,
               "cap": 0.3,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
           "warnings": []
         }
-      ]
+      ],
+      "pull_requests": {
+        "source": "github.com/thomvaill/log4brains",
+        "complete": true,
+        "fetched": 0,
+        "from_cache": 0,
+        "skipped": 0,
+        "withheld": 0,
+        "stopped": null,
+        "token": false
+      }
     },
     {
       "repo": "https://github.com/mrwilson/adr-viewer",
@@ -903,12 +948,17 @@
             "affected_modules": [
               "adr_viewer/__init__.py"
             ],
+            "pull_request_lookup": {
+              "linked": 0,
+              "complete": true,
+              "searched": true
+            },
             "title": "Adopt click for CLI interface",
-            "context": "The project needed a command\u2011line interface to generate HTML from ADR files. The developers wanted sensible defaults for the ADR directory and output file, and automatic help text. The existing code did not have a CLI framework, and the repository\u2019s requirements were empty before this change.",
-            "decision": "Add the `click` library as a dependency and refactor the entry point to use click\u2019s command and option decorators.",
-            "consequences": "The `requirements.txt` and `setup.py` now list `click` as a required package. The `main` function is now a click command with `--adr-path` and `--output` options, and the help output shows default values (as later documented). Future code that invokes the CLI will rely on click, tying the project to that library. No other CLI framework appears in the history, so click becomes the de\u2011facto standard for this project.",
+            "context": "The project needed a command\u2011line interface to generate HTML from ADR files. The developers added a new dependency and rewrote the entry point to use a library that provides option parsing and help generation. The commit message explicitly mentions using click for the CLI. Documentation later shows that the help output displays default values, a feature of click.",
+            "decision": "The project decided to use the click library as the implementation of its command\u2011line interface.",
+            "consequences": "The code now imports click and defines the main command with @click.command and @click.option decorators. The requirements.txt and setup.py were updated to include click as a runtime dependency. Subsequent commits reference the new CLI options (e.g., showing defaults in help), indicating that other parts of the codebase rely on click's API. Adding this dependency also introduces an external package that must be maintained and bundled with the project.",
             "alternatives": "",
-            "inference": "The decision appears to be driven by the need for a lightweight, declarative CLI that provides built\u2011in help and default handling, which `click` offers. The commit message explicitly mentions using click for the CLI, and the subsequent docs commit leverages click\u2019s help output, suggesting the developers chose click to simplify CLI development and improve user experience.",
+            "inference": "Based on the commit message \"Using click library for cli interface\" and the code changes that replace a manual argument handling approach with click decorators, we infer that the developers chose click to obtain a structured, declarative CLI with built\u2011in help and default handling, reducing boilerplate and improving usability.",
             "evidence": [
               {
                 "short": "3e9e240",
@@ -923,7 +973,8 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds `click` to requirements and modifies `adr_viewer/__init__.py` to import click and define a click\u2011based CLI command with options."
+                "shows": "Adds click to requirements.txt and modifies __init__.py to use click decorators for the CLI.",
+                "pull_requests": []
               },
               {
                 "short": "8585b23",
@@ -938,7 +989,8 @@
                   "text": 0.255
                 },
                 "decision_commit": false,
-                "shows": "Documentation commit that shows parameter defaults in `--help`, indicating click\u2019s automatic help generation is being used."
+                "shows": "Updates documentation to show parameter defaults when using --help, reflecting click's automatic help generation.",
+                "pull_requests": []
               },
               {
                 "short": "bb6411c",
@@ -953,24 +1005,36 @@
                   "text": 0.062
                 },
                 "decision_commit": false,
-                "shows": "Adds a different dependency (Bottle) for a server feature, confirming the day\u2019s focus on adding external libraries."
+                "shows": "Adds a server command using Bottle, showing that the same day other functionality was added but not a CLI alternative.",
+                "pull_requests": []
               }
             ],
             "confidence": 0.6,
             "confidence_label": "Medium",
-            "confidence_reason": "The commit directly adds click and rewrites the entry point, and later documentation relies on click\u2019s features, providing strong evidence of the decision. (Capped at 0.6 by evidence quality.)",
+            "confidence_reason": "The decision is directly stated in the commit message and clearly reflected in the code and dependency changes. (Capped at 0.6 by evidence quality.)",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
               "llm_confidence": 0.92,
               "cap": 0.6,
+              "pull_requests_named": [],
               "rationale_words_in_evidence": false
             }
           },
           "warnings": []
         }
-      ]
+      ],
+      "pull_requests": {
+        "source": "github.com/mrwilson/adr-viewer",
+        "complete": true,
+        "fetched": 0,
+        "from_cache": 0,
+        "skipped": 0,
+        "withheld": 0,
+        "stopped": null,
+        "token": false
+      }
     },
     {
       "repo": "https://github.com/constructorfleet/mcp-plex",
@@ -1062,12 +1126,17 @@
               "tests/test_server.py",
               "uv.lock"
             ],
-            "title": "Adopt coverage for test measurement",
-            "context": "The project needed a way to measure test coverage for its Python code base. Existing test suites were expanding, and developers wanted a standard tool to enforce coverage thresholds. The repository uses pyproject.toml to declare development dependencies, so adding a new dev\u2011dependency would be the natural integration point.",
-            "decision": "The team added the `coverage[toml]` package to the development dependencies in both the root and Docker manifests.",
-            "consequences": "All subsequent commits continue to list `coverage[toml]` in the dependency manifests, indicating the dependency is now part of the baseline environment. Test files were expanded with additional imports (e.g., `io`, `sys`, `datetime`) that are typical for coverage\u2011related fixtures, suggesting the new tool is being exercised. The version bump to 1.0.0 later in the history reflects a stable release that now includes coverage support. A trade\u2011off is the added dependency size and the need for developers to run coverage commands as part of the CI pipeline.",
+            "pull_request_lookup": {
+              "linked": 11,
+              "complete": true,
+              "searched": true
+            },
+            "title": "Add coverage dependency for local test coverage reporting",
+            "context": "The project required higher overall test coverage (above 96%). The development team added a new dev\u2011dependency on the `coverage[toml]` package and extended the test suite to cover edge cases in loader and server components. The change also bumped the project version to reflect the new release.",
+            "decision": "The repository adopted the `coverage` package as a development dependency and updated tests to enable local coverage reporting.",
+            "consequences": "Subsequent commits continue to reference the updated version number and retain the `coverage` entry in the dependency manifest, indicating the dependency remains in use. The expanded test suite provides more thorough verification of loader retry logic and server request handling, supporting the goal of >96% coverage. Adding the dependency also required updating the Docker dependency manifest to keep version metadata in sync.",
             "alternatives": "",
-            "inference": "The decision to adopt coverage appears to be driven by a desire for measurable test quality as the code base grew. The commit message explicitly mentions adding coverage\u2011focused tests, and the manifest change introduces the package as a dev dependency, which is the standard way to integrate such tooling in Python projects. Subsequent commits retain the dependency, implying the team accepted the change and incorporated it into the CI workflow.",
+            "inference": "The decision to adopt `coverage` appears driven by a stated requirement to achieve test coverage above 96% (as noted in PR #72). Adding the dependency enabled the team to run `coverage run -m pytest` locally and verify the new tests increased coverage. The version bump and Docker manifest updates were necessary to keep all packaging metadata consistent after the new dependency was introduced.",
             "evidence": [
               {
                 "short": "d2d3a9e",
@@ -1082,7 +1151,15 @@
                   "text": 1.0
                 },
                 "decision_commit": true,
-                "shows": "Adds `coverage[toml]>=7.6.10` to the dev dependencies in pyproject.toml and docker/pyproject.deps.toml, and introduces new test imports."
+                "shows": "Adds `coverage[toml]` to dev dependencies, bumps version to 0.26.44, and introduces new loader and server tests to raise coverage.",
+                "pull_requests": [
+                  {
+                    "number": 72,
+                    "kind": "pull request",
+                    "title": "Increase test coverage to 98%",
+                    "url": "https://github.com/constructorfleet/mcp-plex/pull/72"
+                  }
+                ]
               },
               {
                 "short": "afb6ccc",
@@ -1097,22 +1174,15 @@
                   "text": 0.18
                 },
                 "decision_commit": false,
-                "shows": "Keeps `coverage[toml]` in the dependency manifests while fixing pytest warnings."
-              },
-              {
-                "short": "91e55f8",
-                "sha": "91e55f81b7169e74f981904515f0694e46fd7c23",
-                "date": "2025-10-04T18:24:34+00:00",
-                "author": "Teagan Glenn",
-                "message": "feat(loader): add qdrant upsert retry queue (#79)",
-                "relevance": 0.543,
-                "factors": {
-                  "time": 0.727,
-                  "graph": 0.583,
-                  "text": 0.248
-                },
-                "decision_commit": false,
-                "shows": "Continues to list `coverage[toml]` in the manifests as other features are added."
+                "shows": "Keeps the `coverage` dependency while fixing pytest warnings, confirming the dependency was retained after the initial addition.",
+                "pull_requests": [
+                  {
+                    "number": 76,
+                    "kind": "pull request",
+                    "title": "Resolve pytest warnings for invalid JSON tests",
+                    "url": "https://github.com/constructorfleet/mcp-plex/pull/76"
+                  }
+                ]
               },
               {
                 "short": "faed7eb",
@@ -1127,24 +1197,45 @@
                   "text": 0.136
                 },
                 "decision_commit": false,
-                "shows": "Releases version 1.0.0 after the coverage adoption, indicating the change is part of the released product."
+                "shows": "Bumps the overall project version to 1.0.0 and synchronises Docker manifests, showing the version change introduced by the coverage adoption persisted.",
+                "pull_requests": [
+                  {
+                    "number": 113,
+                    "kind": "pull request",
+                    "title": "chore: bump version to 1.0.0",
+                    "url": "https://github.com/constructorfleet/mcp-plex/pull/113"
+                  }
+                ]
               }
             ],
-            "confidence": 0.77,
+            "confidence": 0.92,
             "confidence_label": "High",
-            "confidence_reason": "The primary commit directly adds the dependency and test changes, and later commits consistently retain it, providing strong evidence of the decision. (Capped at 0.77 by evidence quality.)",
+            "confidence_reason": "The primary commit explicitly states the why, and later commits retain the dependency, providing strong evidence.",
             "validation": {
               "attempts": 1,
               "invalid_citations": [],
               "unsupported_mentions": [],
-              "llm_confidence": 0.86,
-              "cap": 0.77,
-              "rationale_words_in_evidence": false
+              "llm_confidence": 0.92,
+              "cap": 0.92,
+              "pull_requests_named": [
+                "#72"
+              ],
+              "rationale_words_in_evidence": true
             }
           },
           "warnings": []
         }
-      ]
+      ],
+      "pull_requests": {
+        "source": "github.com/constructorfleet/mcp-plex",
+        "complete": true,
+        "fetched": 12,
+        "from_cache": 0,
+        "skipped": 0,
+        "withheld": 1,
+        "stopped": null,
+        "token": false
+      }
     }
   ],
   "provider": {

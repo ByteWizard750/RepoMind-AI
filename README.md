@@ -6,7 +6,7 @@ Paste a public GitHub URL and you get:
 
 - **Architecture drift** — your architecture rules (as data) checked against the real dependency graph, a health score, violations ranked by a deterministic priority, and an AI explanation with a suggested fix for each rule group.
 - **Drift over time** — health at evenly spaced points of the history, and the architecture as it was at any of those points, rebuilt from the temporal graph.
-- **Architecture decisions** — decision points detected in the history (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved) and a reconstructed ADR for each, split into evidence, inference and confidence.
+- **Architecture decisions** — decision points detected in the history (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved) and a reconstructed ADR for each, split into evidence, inference and confidence. The evidence includes the GitHub pull requests and issues the commits belong to, where developers usually say why; a reason is reported as stated only when that text states it.
 - **Documentation** — a grounded description of every module, generated map-reduce style.
 - **Ask the repo** — a chat that answers structural, architectural, historical and "why" questions by querying the graph, the history and the ADR engine, and lists the exact queries behind every answer.
 - **Knowledge graph, live from Neo4j** — the Graph tab reads what Neo4j stores right now (data model with counts, code structure, module dependencies, history, time-travel snapshots, decisions, or everything) and draws it; click any node or relationship for its stored properties, expand its neighbours, and see the exact Cypher each view ran.
@@ -37,7 +37,7 @@ Tree-sitter parsing (Python, JavaScript, TypeScript) ──► Neo4j: Module / C
 
 **Temporal graph.** The current-state graph always describes HEAD. History lives in separate labels: snapshots at sampled commits, and module dependencies stored as `H_IMPORTS` relationships with valid-time intervals, so "the dependency graph at snapshot k" is a query. Granularity is the sampled snapshots, at module/dependency level.
 
-**ADR relevance.** For each decision point, nearby commits are ranked by `relevance = 0.3·time + 0.45·graph + 0.25·text` — time decay in days and commits, overlap with the files and modules the decision concerns, and TF-IDF similarity over messages and tokenized file paths (no embeddings). Only commits above 0.35 become evidence.
+**ADR relevance.** For each decision point, nearby commits are ranked by `relevance = 0.3·time + 0.45·graph + 0.25·text` — time decay in days and commits, overlap with the files and modules the decision concerns, and TF-IDF similarity over messages and tokenized file paths (no embeddings). Only commits above 0.35 become evidence. For those commits, the pull requests they came from (found through their merge commits, or a squash merge's "(#123)") and the issues their messages reference are fetched from GitHub and handed to the AI with them; the validator rejects a record that names a pull request it wasn't given.
 
 **Health score.** `health = 100 · (1 − Σ severity·violations/judged_edges ÷ Σ severity)` over the rules that had anything to judge. A repository with no layer-tagged dependencies is reported as *not scored*, not as 100. The original per-rule formula is kept as the "legacy score".
 

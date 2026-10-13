@@ -349,6 +349,12 @@ def _adr(data, md, results_dir):
         headline.append({"label": "Reconstructions validated", "value": f"{len(recs) - fallback}/{len(recs)}",
                          "detail": f"{retried} needed a retry, {flagged} flagged unsupported mentions, "
                                    f"{fallback} fell back"})
+        if any("pull_request_lookup" in p["reconstructed"] for p in recs):
+            with_prs = sum(1 for p in recs if p["reconstructed"].get("pull_request_lookup", {}).get("linked"))
+            named = sum(1 for p in recs if p["reconstructed"]["validation"].get("pull_requests_named"))
+            headline.append({"label": "With pull request text", "value": f"{with_prs}/{len(recs)}",
+                             "detail": f"evidence included a linked pull request or issue; {named} named one "
+                                       "as the stated reason"})
     headline.append({"label": "Human scores", "value": f"{human['scored']}/{human['pairs']}" if human["pairs"] else "–",
                      "detail": (f"accuracy {human['accuracy']}/5, completeness {human['completeness']}/5, "
                                 f"hallucination {_pct(human['hallucination_rate'])}") if human["scored"]

@@ -856,7 +856,7 @@
 
     <section id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions">
       <h2>Architecture Decisions <span class="h2-note">reconstructed from history</span></h2>
-      <p class="section-lead">Decision points are detected deterministically (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved). Nearby commits are ranked by relevance = 0.3·time + 0.45·graph + 0.25·text, and the AI writes each record only from that evidence. Reasons are inferred, never confirmed intent.</p>
+      <p class="section-lead">Decision points are detected deterministically (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved). Nearby commits are ranked by relevance = 0.3·time + 0.45·graph + 0.25·text, and the AI writes each record only from that evidence, including the text of the GitHub pull requests and issues those commits belong to, which is where developers usually explain why. A reason is reported as stated only when that text states it; otherwise it is marked as inferred.</p>
       <div id="decisions"></div>
     </section>
 
@@ -2147,7 +2147,10 @@
     const evidence = (a.evidence || []).map((e) => `<li>
         <span>${commitLink(e.sha, e.short)}<br><span class="rel-num">${shortDate(e.date)}</span></span>
         <span class="msg">${escapeHtml(e.message)}${e.decision_commit ? ' <span class="badge status">decision commit</span>' : ''}
-          ${e.shows ? `<span class="shows">${escapeHtml(e.shows)}</span>` : ''}</span>
+          ${e.shows ? `<span class="shows">${escapeHtml(e.shows)}</span>` : ''}
+          ${(e.pull_requests || []).map((p) => `<span class="shows">${/^https:\/\/github\.com\//.test(p.url)
+            ? `<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.kind)} #${p.number}</a>`
+            : `${escapeHtml(p.kind)} #${p.number}`}: ${escapeHtml(p.title)}</span>`).join('')}</span>
         <span title="time ${e.factors.time} · graph ${e.factors.graph} · text ${e.factors.text}">
           <span class="rel-num">relevance ${e.relevance}</span>
           <div class="relbar"><span style="width:${Math.round(Math.min(1, e.relevance) * 100)}%"></span></div>
@@ -2170,7 +2173,8 @@
         ${section('Decision', a.decision)}
         ${section('Consequences', a.consequences)}
         ${section('Alternatives visible in the evidence', a.alternatives)}
-        <div class="kv"><span class="k">Evidence · ${(a.evidence || []).length} of ${a.commits_considered + 1} commits considered</span>
+        <div class="kv"><span class="k">Evidence · ${(a.evidence || []).length} of ${a.commits_considered + 1} commits considered${
+          a.pull_request_lookup && a.pull_request_lookup.linked ? ` · ${a.pull_request_lookup.linked} pull request${a.pull_request_lookup.linked === 1 ? '' : 's'} / issue${a.pull_request_lookup.linked === 1 ? '' : 's'} read` : ''}</span>
           <ul class="evidence-list">${evidence}</ul></div>
         ${a.inference ? `<div class="inference kv"><span class="k">Inference</span>${escapeHtml(a.inference)}</div>` : ''}
         <div class="confidence"><span class="badge ${label}">${escapeHtml(a.confidence_label)} confidence · ${a.confidence}</span>${escapeHtml(a.confidence_reason)}</div>

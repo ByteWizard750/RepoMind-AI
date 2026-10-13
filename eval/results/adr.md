@@ -96,6 +96,8 @@ Evidence selected for the matched decision points under different α (time) / β
 
 7 matched decisions reconstructed. Validator retries needed: 0/7; records with unsupported mentions flagged: 0; fallbacks (no usable synthesis): 0. Cited commits outside the evidence remaining after validation: 0 by construction (they are removed or trigger a retry).
 
+Pull request and issue text: 1/7 reconstructions had some attached to their evidence; 1 named one in the record. thomvaill/log4brains: 0 fetched, 0 from cache, 0 withheld for mentioning the masked ADR folders; mrwilson/adr-viewer: 0 fetched, 0 from cache, 0 withheld for mentioning the masked ADR folders; constructorfleet/mcp-plex: 12 fetched, 0 from cache, 1 withheld for mentioning the masked ADR folders.
+
 Human scores (accuracy, completeness, hallucination) go in `adr_rubric.md`.
 
 ## Limits
@@ -103,4 +105,4 @@ Human scores (accuracy, completeness, hallucination) go in `adr_rubric.md`.
 - Only decisions that leave a trace in code history are detectable (dependency, infrastructure, structure, rule changes). ADRs about process, documentation or UI conventions have no such trace.
 - Topic matching uses title words, so a correct detection described with different words counts as a miss.
 
-_Generated 2026-10-11 17:41 UTC by `eval/eval_adr.py`._
+_Generated 2026-10-13 07:10 UTC by `eval/eval_adr.py`._

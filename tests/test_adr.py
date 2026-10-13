@@ -185,6 +185,55 @@ def test_validator_rejects_invented_commits_then_accepts_the_fix(world, isolated
     assert hit and again == adr and len(prompts) == 2
 
 
+class _FakePRs:
+    """Attaches one merged pull request to the decision commit."""
+    def __init__(self, sha, complete=True):
+        self.sha, self.complete = sha, complete
+
+    def attach(self, commits):
+        pr = {"number": 7, "kind": "pull request", "title": "Cache orders in Redis", "merged": True,
+              "body": "Orders were recomputed on every request; we cache them in Redis because the database "
+                      "was the bottleneck.", "url": "https://github.com/o/r/pull/7", "state": "closed"}
+        return ({self.sha: [pr]} if any(c["hash"] == self.sha for c in commits) else {}), self.complete
+
+
+def test_pull_request_text_reaches_the_record(world, isolated, monkeypatch):
+    adopt = next(d for d in world.decisions if d["kind"] == "dependency_change")
+    wip, cache_commit = world.commits[2]["short"], world.commits[3]["short"]
+    stated = " The database was the bottleneck, as stated in pull request #7."
+    replies = [_draft(world.commits, [wip], stated + " See also #99."), _draft(world.commits, [wip], stated)]
+    prompts = []
+
+    def chat(messages, **kwargs):
+        prompts.append(messages)
+        return SimpleNamespace(content=replies[len(prompts) - 1])
+    monkeypatch.setattr(adr_graph.llm, "chat", chat)
+
+    adr, _, _ = adr_graph.reconstruct_one("local:fx", "head-pr", world.repo, RULES, world.head, world.commits, adopt,
+                                          world.usage, pr_source=_FakePRs(adopt["sha"]))
+    first = prompts[0][1]["content"]
+    assert 'pull request #7 "Cache orders in Redis" (merged): Orders were recomputed' in first
+    assert len(prompts) == 2 and "#99" in prompts[1][-1]["content"]          # an unattached number is sent back
+    assert adr["validation"]["pull_requests_named"] == ["#7"]
+    decision_entry = next(e for e in adr["evidence"] if e["short"] == wip)
+    assert decision_entry["pull_requests"] == [{"number": 7, "kind": "pull request", "title": "Cache orders in Redis",
+                                                "url": "https://github.com/o/r/pull/7"}]
+    assert adr["pull_request_lookup"] == {"linked": 1, "complete": True, "searched": True}
+    assert adr["validation"]["rationale_words_in_evidence"]                 # "because" in the PR text raises the cap
+
+
+def test_incomplete_pull_request_lookup_is_not_cached(world, isolated, monkeypatch):
+    adopt = next(d for d in world.decisions if d["kind"] == "dependency_change")
+    calls = []
+    monkeypatch.setattr(adr_graph.llm, "chat", lambda messages, **kw: calls.append(1) or SimpleNamespace(
+        content=_draft(world.commits, [world.commits[2]["short"]])))
+    args = ("local:fx", "head-partial", world.repo, RULES, world.head, world.commits, adopt, world.usage)
+    adr, _, hit = adr_graph.reconstruct_one(*args, pr_source=_FakePRs(adopt["sha"], complete=False))
+    assert not adr["pull_request_lookup"]["complete"] and not hit
+    _, _, hit = adr_graph.reconstruct_one(*args, pr_source=_FakePRs(adopt["sha"], complete=False))
+    assert not hit and len(calls) == 2                                      # rebuilt, not served from the cache
+
+
 def test_failed_synthesis_falls_back_to_evidence_only(world, isolated, monkeypatch):
     adopt = next(d for d in world.decisions if d["kind"] == "dependency_change")
     monkeypatch.setattr(adr_graph.llm, "chat", lambda messages, **kw: (_ for _ in ()).throw(RuntimeError("down")))
