@@ -47,6 +47,7 @@ from snapshots import build_snapshots, import_intervals, module_presence, read_c
 
 TIMELINE_COMMITS = 15
 REVIEWS_KEPT = 5
+DIAGRAM_MAX_MODULE_EDGES = 400  # above this many imports, the HEAD diagram is drawn per folder
 
 
 @asynccontextmanager
@@ -181,7 +182,12 @@ def _analyze(ws, rules: dict) -> dict:
     driver = loader._get_driver()
     try:
         with driver.session() as session:
-            mermaid_diagram = build_mermaid(fetch_modules(session), fetch_imports(session))
+            diagram_modules, diagram_imports = fetch_modules(session), fetch_imports(session)
+            # A module-level diagram past a few hundred arrows is unreadable (and Mermaid
+            # refuses it), so large repositories get the folder-level one.
+            diagram_level = "module" if len(diagram_imports) <= DIAGRAM_MAX_MODULE_EDGES else "folder"
+            mermaid_diagram = (build_mermaid if diagram_level == "module" else build_folder_mermaid)(
+                diagram_modules, diagram_imports)
             watch.lap("diagram")
             history = _analyze_history(ws, session, data, rules, parse_seconds, watch)
     finally:
@@ -208,6 +214,7 @@ def _analyze(ws, rules: dict) -> dict:
         "rule_checks": pure["checks_by_rule"],
         "layers": dict(Counter(m["layer_type"] or "untagged" for m in data["modules"])),
         "mermaid_diagram": mermaid_diagram,
+        "diagram_level": diagram_level,
         "history": history["summary"],
         "seconds": round(time.time() - t0 + ws.clone_seconds, 1),
         "timings": {"clone": ws.clone_seconds, **watch.marks},

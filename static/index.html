@@ -827,7 +827,7 @@
     </section>
 
     <section id="panel-diagram" role="tabpanel" aria-labelledby="tab-diagram">
-      <h2>Module Dependency Diagram <span class="h2-note">current state (HEAD)</span></h2>
+      <h2><span id="diagram-title">Module Dependency Diagram</span> <span class="h2-note" id="diagram-note">current state (HEAD)</span></h2>
       <div class="diagram-frame"><div class="diagram-view" id="diagram-container"></div></div>
     </section>
 
@@ -901,6 +901,7 @@
     startOnLoad: false,
     theme: 'base',
     maxTextSize: 200000,
+    maxEdges: 3000,
     themeVariables: {
       background: '#0a0a0a',
       primaryColor: '#202020',
@@ -970,9 +971,23 @@
     return `<p class="pending${active ? ' active' : ''}">${escapeHtml(text)}</p>`;
   }
 
+  // Draws a diagram into `container`. A diagram Mermaid can't draw shows a note
+  // in the container instead of failing the whole page.
   async function renderMermaid(container, source) {
     container.innerHTML = '';
-    const { svg } = await mermaid.render(`mmd-${++mermaidCounter}`, source);
+    const id = `mmd-${++mermaidCounter}`;
+    let svg;
+    try {
+      ({ svg } = await mermaid.render(id, source));
+    } catch (err) {
+      // Mermaid leaves its "Syntax error" graphic in a temporary element at the end of the page.
+      document.getElementById('d' + id)?.remove();
+      document.getElementById(id)?.remove();
+      const reason = String((err && err.message) || err).split('\n')[0];
+      container.innerHTML = `<p class="pending">This diagram couldn't be drawn (${escapeHtml(reason)}).
+        The Graph tab shows the same structure interactively.</p>`;
+      return;
+    }
     container.innerHTML = svg;
     // Mermaid sets width="100%", which squeezes a large diagram to the
     // container's width; render at natural size and let the box scroll.
@@ -1745,6 +1760,11 @@
     resetReview();
     renderHistory(h);
     for (const zoom of zoomers.values()) zoom.reset();
+    const byFolder = data.diagram_level === 'folder';
+    $('diagram-title').textContent = byFolder ? 'Folder Dependency Diagram' : 'Module Dependency Diagram';
+    $('diagram-note').textContent = byFolder
+      ? 'current state (HEAD) · grouped by folder: too many module imports to draw one box per file; arrows show how many imports'
+      : 'current state (HEAD)';
     await renderMermaid($('diagram-container'), data.mermaid_diagram);
 
     $('decisions').innerHTML = pending('Waiting for the drift explanations to finish', false);

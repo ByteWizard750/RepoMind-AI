@@ -89,6 +89,8 @@ def test_analyze(analysis):
     assert [s["violations"] for s in h["snapshots"]] == [0, 0, 2, 2, 2, 2, 2, 0]
     assert h["contributors"][0]["name"] == "Ada Dev" and h["contributor_count"] == len(h["contributors"])
     assert set(analysis["timings"]) >= {"clone", "parse", "graph_load", "rules", "history_mining", "snapshots"}
+    assert analysis["diagram_level"] == "module" and "subgraph" in analysis["mermaid_diagram"]
+
 
 
 def test_lazy_sections(client, analysis):
@@ -226,3 +228,13 @@ def test_review_without_token_still_reviews(client, analysis, monkeypatch):
     review = client.post("/review", json={"analysis_id": analysis["analysis_id"], "commits": 1}).json()
     assert review["github"]["can_raise"] is False and review["resolved"]   # the fix commit resolved violations
     assert client.post("/review", json={"analysis_id": "nope"}).status_code == 409
+
+
+# Last: it re-analyzes, which makes the module's shared analysis stale.
+def test_large_repositories_get_the_folder_diagram(client, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "DIAGRAM_MAX_MODULE_EDGES", 0)
+    resp = client.post("/analyze", json={"repo_url": client.repo})
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["diagram_level"] == "folder" and "file" in data["mermaid_diagram"] and "subgraph" not in data["mermaid_diagram"]
