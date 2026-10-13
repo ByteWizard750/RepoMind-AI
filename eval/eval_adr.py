@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 
 from common import clone, remove_tree, table, write_report, RESULTS
 
+import llm
 from adr.detect import MAX_DECISIONS, detect_decisions
 from adr.relevance import focus_files, score_evidence, tokens
 from external_imports import modules_using, scan_repo
@@ -275,7 +276,8 @@ def main():
            "- Only decisions that leave a trace in code history are detectable (dependency, infrastructure, structure, "
            "rule changes). ADRs about process, documentation or UI conventions have no such trace.",
            "- Topic matching uses title words, so a correct detection described with different words counts as a miss."]
-    print(write_report("adr", "\n".join(md), {"results": results}))
+    print(write_report("adr", "\n".join(md), {
+        "results": results, "provider": llm.describe("adr") if args.synthesize else None}))
 
 
 if __name__ == "__main__":

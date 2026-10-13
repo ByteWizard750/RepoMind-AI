@@ -9,6 +9,8 @@ Paste a public GitHub URL and you get:
 - **Architecture decisions** — decision points detected in the history (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved) and a reconstructed ADR for each, split into evidence, inference and confidence.
 - **Documentation** — a grounded description of every module, generated map-reduce style.
 - **Ask the repo** — a chat that answers structural, architectural, historical and "why" questions by querying the graph, the history and the ADR engine, and lists the exact queries behind every answer.
+- **Knowledge graph, live from Neo4j** — the Graph tab reads what Neo4j stores right now (data model with counts, code structure, module dependencies, history, time-travel snapshots, decisions, or everything) and draws it; click any node or relationship for its stored properties, expand its neighbours, and see the exact Cypher each view ran.
+- **Metrics** — a tab with everything measured on the analysis (health and per-rule violation rates, sizes, Neo4j node and relationship counts, time per stage, AI calls and tokens per feature), and a separate **Benchmark results** page (`/evaluation`) showing the accuracy measured by the `eval/` scripts — read from `eval/results/` with each benchmark's method, date, model and limits.
 - **Code review → GitHub issues** — reviews the latest commits: rule violations they introduced (from the rule engine) and bugs, security and error-handling problems in the changed lines (from the AI, each one checked against the exact line it quotes). Findings become GitHub issues — with one click in the app, or automatically on every push with the included GitHub Action.
 
 ## How it works
@@ -169,7 +171,7 @@ workspace.py           clone lifecycle, progress and cancel, analysis ids, URL v
 preflight.py           before cloning: folder URLs, GitHub size/language check
 scope.py               what part of a repository is analyzed (large repos, folders)
 parser/                Tree-sitter extractors (Python, JS, TS), tsconfig path aliases
-graph/                 Neo4j schema, current-state loader, history/temporal loader
+graph/                 Neo4j schema, current-state loader, history/temporal loader, read-only graph views (explorer.py)
 layers.py              layer assignment from rules
 rules/                 rules config validation, Cypher engine, in-memory evaluator, scoring
 history.py             git history mining
@@ -184,6 +186,8 @@ docs_generator.py      map-reduce documentation
 llm.py                 Bedrock/Groq client, retries, key rotation, usage accounting
 cache.py               artifact cache
 static/index.html      the web UI (plain HTML/JS)
+static/evaluation.html the Benchmark results page
+metrics.py             metrics of an analysis (incl. AI usage per feature) and the benchmark summary
 eval/                  evaluation scripts and results
 tests/                 pytest suite
 demo/                  scripted demo repositories (ShopWise, TaskFlow) and the demo-day guide
@@ -209,7 +213,7 @@ Scripts in `eval/` write reports to `eval/results/`:
 | `eval_efficiency.py` | Time per stage, LLM calls and tokens cold vs. warm cache |
 | `eval_review.py` | Code review recall/precision on planted problems and harmless decoys |
 
-Latest results:
+Latest results (also on the **Benchmark results** page, http://localhost:8000/evaluation, which reads these files):
 
 - **Drift detection:** precision, recall and F1 of 1.0 on 150 injected violations across 15 generated projects (with 150 decoys), on 27 violations injected into 3 real repositories, and on indirect forms — module objects, submodule imports, barrels and re-exports, tsconfig path aliases, constructor-injected fields — with unknown-class receivers as decoys.
 - **ADR decision points:** 46% strict / 82% temporal recall over 28 real ADRs in 3 repositories; misses are mostly decisions with no trace in code (naming conventions, Git workflow, code style). See the report for which matches land on squashed commits. The 7 matched decisions, reconstructed on Bedrock, all passed validation first time (no retries, no unsupported mentions, no fallbacks); `eval/results/adr_rubric.md` is the sheet for scoring them by hand against the real ADRs.

@@ -21,13 +21,14 @@ from pydantic import BaseModel, Field
 
 import cache
 import llm
+import metrics
 import workspace
 from agents.adr_graph import decisions_for, reconstruct, store_decisions
 from agents.drift_graph import explain_violations
 from agents.review_graph import review_changes
 from docs_generator import generate_documentation
 from export_diagram import build_folder_mermaid, build_mermaid, fetch_imports, fetch_modules
-from graph import loader
+from graph import explorer, loader
 from graph.history_loader import graph_at_snapshot, load_history
 from history import commit_meta, contributors, git, introduced_at, mine_commits
 from layers import apply_layers
@@ -36,7 +37,8 @@ from review import github_issues
 from review.diff import file_at
 from scope import LARGE_REPO_SNAPSHOTS, UnsupportedRepo
 from scope import choose as choose_scope
-from qa_engine import answer_question, attach_analysis, clear_repo_context, set_repo_context
+from qa_engine import (answer_question, attach_analysis, attached_analysis_id, clear_repo_context, set_repo_context,
+                       shared_driver)
 from rules.config import MAX_RULES_YAML_CHARS, RulesError, default_rules_text, load_rules_config
 from rules.evaluate import evaluate, format_violation, violation_key
 from rules.rule_engine import run_rule_engine
@@ -188,7 +190,7 @@ def _analyze(ws, rules: dict) -> dict:
     ws.results.update(data=data, rules=rules, violations=violations, violations_payload=violations_payload,
                       health=health_score, history=history)
     attach_analysis(ws.id)
-    return {
+    response = {
         "analysis_id": ws.id,
         "repo_url": ws.repo_url,
         "branch": ws.ref or git(ws.path, "rev-parse", "--abbrev-ref", "HEAD").strip(),
@@ -210,6 +212,8 @@ def _analyze(ws, rules: dict) -> dict:
         "seconds": round(time.time() - t0 + ws.clone_seconds, 1),
         "timings": {"clone": ws.clone_seconds, **watch.marks},
     }
+    ws.results["summary"] = {k: v for k, v in response.items() if k != "mermaid_diagram"}
+    return response
 
 
 def _analyze_history(ws, session, data: dict, rules: dict, parse_seconds: float, watch) -> dict:
@@ -243,7 +247,8 @@ def _analyze_history(ws, session, data: dict, rules: dict, parse_seconds: float,
         "truncated": mined["truncated"],
         "first_commit": commits[0]["date"] if commits else None,
         "last_commit": commits[-1]["date"] if commits else None,
-        "contributors": contributors(commits),
+        "contributors": contributors(commits),              # the top 10
+        "contributor_count": len({c["author_id"] for c in commits}),
         "snapshots": [{
             "idx": s["idx"], "sha": s["sha"], "short": s["short"], "date": s["date"], "subject": s["subject"],
             "health": s["health"], "health_legacy": s["health_legacy"],
@@ -266,9 +271,10 @@ def documentation(ref: AnalysisRef):
             r = ws.results
             try:
                 path = cache.entry_path(ws.key_url, ws.head_sha, "documentation", "docs", rules=r["rules"])
-                result, hit = cache.cached(
-                    path, lambda: generate_documentation(ws.path, r["data"], r["violations_payload"], r["health"]),
-                    cacheable=lambda value: not value["warnings"])
+                with metrics.track(ws.id, "docs"):
+                    result, hit = cache.cached(
+                        path, lambda: generate_documentation(ws.path, r["data"], r["violations_payload"], r["health"]),
+                        cacheable=lambda value: not value["warnings"])
             except Exception as exc:
                 # generate_documentation only raises for setup failures (no LLM
                 # key); str(exc) can be "" for some exception types.
@@ -286,8 +292,9 @@ def violations_explain(ref: AnalysisRef):
         with workspace.use(ref.analysis_id) as ws:
             r = ws.results
             try:
-                return explain_violations(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
-                                          r["history"]["snapshots"])
+                with metrics.track(ws.id, "drift"):
+                    return explain_violations(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
+                                              r["history"]["snapshots"])
             except llm.LLMConfigError as exc:
                 return {"groups": [], "warnings": [str(exc)], "error": str(exc)}
             except RuntimeError as exc:
@@ -302,8 +309,10 @@ def adrs(ref: AnalysisRef):
         with workspace.use(ref.analysis_id) as ws:
             r = ws.results
             try:
-                result = reconstruct(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
-                                     r["history"]["commits"], r["history"]["snapshots"], decisions=decisions_for(ws))
+                with metrics.track(ws.id, "adr"):
+                    result = reconstruct(ws.key_url, ws.head_sha, ws.path, r["rules"], r["data"],
+                                         r["history"]["commits"], r["history"]["snapshots"],
+                                         decisions=decisions_for(ws))
             except llm.LLMConfigError as exc:
                 return {"decisions": [], "detected": 0, "warnings": [str(exc)], "error": str(exc)}
             if workspace.is_current(ws.id):
@@ -342,6 +351,61 @@ def history_snapshot(idx: int, analysis_id: str):
         raise HTTPException(status_code=409, detail=str(exc))
 
 
+@app.get("/graph")
+def graph_view(analysis_id: str, view: str = "model"):
+    """What Neo4j holds now for this analysis, read with the Cypher queries returned alongside."""
+    if view != "model" and view not in explorer.VIEWS:
+        raise HTTPException(status_code=404, detail="No such view.")
+    try:
+        with workspace.use(analysis_id) as ws:
+            with shared_driver().session() as session:
+                result = explorer.view(session, view)
+            return {**result, "repo_url": ws.repo_url}
+    except workspace.StaleAnalysis as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.get("/graph/neighbours")
+def graph_neighbours(analysis_id: str, node_id: str):
+    try:
+        with workspace.use(analysis_id):
+            with shared_driver().session() as session:
+                return explorer.neighbours(session, node_id)
+    except workspace.StaleAnalysis as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.get("/metrics")
+def analysis_metrics(analysis_id: str):
+    """Everything measured on this analysis, for the Metrics tab."""
+    try:
+        with workspace.use(analysis_id) as ws:
+            with shared_driver().session() as session:
+                counts = explorer.counts(session)
+            return metrics.analysis_metrics(ws, counts)
+    except workspace.StaleAnalysis as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.get("/evaluation")
+def evaluation_page():
+    return FileResponse("static/evaluation.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/metrics/evaluation")
+def evaluation_results():
+    """The benchmark results in eval/results/, summarized for the Evaluation page."""
+    return metrics.evaluation()
+
+
+@app.get("/metrics/report/{name}", response_class=PlainTextResponse)
+def evaluation_report(name: str):
+    text = metrics.report_markdown(name)
+    if text is None:
+        raise HTTPException(status_code=404, detail="No such report.")
+    return text
+
+
 def _github(ws, review: dict, apply_changes: bool, selected=None) -> dict:
     return github_issues.sync(review, ws.repo_url, lambda path: file_at(ws.path, review["range"]["head"], path),
                               apply_changes=apply_changes, selected=selected)
@@ -355,8 +419,9 @@ def review(req: ReviewRequest):
     try:
         with workspace.use(req.analysis_id) as ws:
             r = ws.results
-            result = review_changes(ws.path, ws.key_url, r["rules"], head=ws.head_sha, base=req.base,
-                                    commits=req.commits, head_data=r["data"], include=ws.scope.include_fn())
+            with metrics.track(ws.id, "review"):
+                result = review_changes(ws.path, ws.key_url, r["rules"], head=ws.head_sha, base=req.base,
+                                        commits=req.commits, head_data=r["data"], include=ws.scope.include_fn())
             reviews = r.setdefault("reviews", {})
             reviews[result["review_id"]] = result
             for old in list(reviews)[:-REVIEWS_KEPT]:
@@ -387,7 +452,8 @@ def review_issues(req: RaiseRequest):
 @app.post("/ask")
 def ask(req: AskRequest):
     try:
-        return answer_question(req.question, [turn.model_dump() for turn in req.history])
+        with metrics.track(attached_analysis_id(), "qa"):
+            return answer_question(req.question, [turn.model_dump() for turn in req.history])
     except Exception as exc:
         return {"answer": None, "evidence": [], "error": str(exc) or type(exc).__name__}
 

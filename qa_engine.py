@@ -100,6 +100,11 @@ def attach_analysis(analysis_id: str) -> None:
         _context["analysis_id"] = analysis_id
 
 
+def attached_analysis_id():
+    """The analysis questions are currently answered about (None before one finishes)."""
+    return _analysis_id()
+
+
 def _snapshot():
     with _context_lock:
         return _context["repo_url"], _context["sources"]

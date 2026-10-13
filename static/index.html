@@ -477,6 +477,66 @@
   .diagram-frame.pseudo-full { position: fixed; inset: 0; z-index: 100; }
   .diagram-frame:fullscreen .diagram-view, .diagram-frame.pseudo-full .diagram-view { flex: 1; min-height: 0; max-height: none !important; }
   body.diagram-full { overflow: hidden; }
+
+  /* ---------- metrics of this analysis ---------- */
+  .metrics-head { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; margin: 0 0 1rem; font-size: 0.78rem; color: var(--text-dim); }
+  .metrics-head .grow { flex: 1 1 260px; line-height: 1.6; }
+  .metrics-head button.secondary, .eval-link { padding: 0.4rem 0.75rem; font-size: 0.72rem; box-shadow: 2px 2px 0 0 var(--border); }
+  a.eval-link {
+    display: inline-block; text-decoration: none; border: 3px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .metric-block { margin: 1.4rem 0 0; }
+  .metric-block h3 { margin: 0 0 0.6rem; }
+  .metric-block .note { font-size: 0.74rem; color: var(--text-dim); line-height: 1.6; margin: 0.4rem 0 0; }
+  .metric-table { border-collapse: collapse; width: 100%; font-size: 0.76rem; display: block; overflow-x: auto; }
+  .metric-table th, .metric-table td { border: 2px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+  .metric-table th {
+    background: var(--surface-2); font-family: 'Space Grotesk', sans-serif; text-transform: uppercase;
+    font-size: 0.68rem; letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .metric-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .metric-bar { display: inline-block; height: 0.6rem; background: var(--text); vertical-align: middle; margin-right: 0.5rem; }
+  .stats.compact .stat { padding: 0.7rem 0.9rem; }
+  .stats.compact .stat .value { font-size: 1.35rem; }
+
+  /* ---------- knowledge graph (live from Neo4j) ---------- */
+  .graph-totals { font-size: 0.78rem; color: var(--text-dim); line-height: 1.7; margin: 0 0 0.9rem; }
+  .graph-totals strong { color: var(--text); font-weight: 500; }
+  .graph-views { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0 0 0.6rem; }
+  .graph-views button.secondary { padding: 0.4rem 0.7rem; font-size: 0.72rem; box-shadow: 2px 2px 0 0 var(--border); }
+  .graph-views button[aria-pressed=true] { background: var(--invert-bg); color: var(--invert-text); }
+  .graph-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; margin: 0 0 0.8rem; max-width: 80ch; }
+  .graph-frame { display: flex; flex-direction: column; gap: 0.6rem; }
+  .graph-body { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 0.6rem; }
+  .graph-canvas { height: 62vh; min-height: 320px; border: 2px solid var(--border); background: var(--bg); position: relative; }
+  .graph-canvas .pending, .graph-canvas .error-box { position: absolute; inset: 1rem auto auto 1rem; }
+  .graph-details {
+    border: 2px solid var(--text-dim); background: var(--surface-2); padding: 0.8rem;
+    font-size: 0.74rem; line-height: 1.55; overflow: auto; max-height: 62vh; overflow-wrap: anywhere;
+  }
+  .graph-details .muted { color: var(--text-dim); }
+  .graph-details h4 { margin: 0.2rem 0 0.6rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; }
+  .graph-details table { width: 100%; border-collapse: collapse; margin: 0.6rem 0; }
+  .graph-details td { border-top: 1px solid var(--surface); padding: 0.25rem 0.3rem 0.25rem 0; vertical-align: top; }
+  .graph-details td:first-child { color: var(--text-dim); white-space: nowrap; }
+  .graph-details pre { white-space: pre-wrap; font-size: 0.68rem; background: var(--bg); padding: 0.5rem; border: 1px solid var(--text-faint); }
+  .graph-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.7rem; }
+  .graph-legend .glyph { color: var(--text); margin-right: 0.3rem; }
+  .graph-note { font-size: 0.74rem; color: var(--text-dim); margin: 0.6rem 0 0; line-height: 1.6; }
+  .graph-cypher { margin-top: 0.8rem; }
+  .graph-cypher summary { cursor: pointer; font-size: 0.74rem; color: var(--text-dim); }
+  .graph-cypher pre { font-size: 0.72rem; background: var(--bg); padding: 0.8rem; border: 1px solid var(--text-faint); overflow-x: auto; white-space: pre-wrap; }
+  .graph-frame:fullscreen, .graph-frame.pseudo-full { padding: 1rem; background: var(--bg); }
+  .graph-frame.pseudo-full { position: fixed; inset: 0; z-index: 100; }
+  .graph-frame:fullscreen .graph-body, .graph-frame.pseudo-full .graph-body { flex: 1; min-height: 0; }
+  .graph-frame:fullscreen .graph-canvas, .graph-frame.pseudo-full .graph-canvas,
+  .graph-frame:fullscreen .graph-details, .graph-frame.pseudo-full .graph-details { height: auto; max-height: none; }
+  @media (max-width: 760px) {
+    .graph-body { grid-template-columns: 1fr; }
+    .graph-canvas { height: 55vh; }
+    .graph-details { max-height: none; }
+  }
   @media (max-width: 560px) { .diagram-tools .hint { display: none; } }
 
   /* ---------- decisions ---------- */
@@ -656,7 +716,7 @@
 </head>
 <body>
   <h1>RepoMind AI</h1>
-  <p class="subtitle">Paste a public GitHub repository. RepoMind builds a knowledge graph of its structure and history, checks it against your architecture rules, traces how its health drifted over time, and reconstructs the decisions behind it — every claim backed by evidence you can inspect.</p>
+  <p class="subtitle">Paste a public GitHub repository. RepoMind builds a knowledge graph of its structure and history, checks it against your architecture rules, traces how its health drifted over time, and reconstructs the decisions behind it — every claim backed by evidence you can inspect. <a href="/evaluation" target="_blank" rel="noopener">See how accurate it is &rarr;</a></p>
 
   <div class="input-row">
     <input id="repo-url" type="text" placeholder="https://github.com/user/repo" aria-label="GitHub repository URL" />
@@ -693,8 +753,10 @@
       <button type="button" role="tab" id="tab-review" aria-controls="panel-review">Code Review</button>
       <button type="button" role="tab" id="tab-history" aria-controls="panel-history">History</button>
       <button type="button" role="tab" id="tab-diagram" aria-controls="panel-diagram">Diagram</button>
+      <button type="button" role="tab" id="tab-graph" aria-controls="panel-graph">Graph</button>
       <button type="button" role="tab" id="tab-decisions" aria-controls="panel-decisions">Decisions</button>
       <button type="button" role="tab" id="tab-docs" aria-controls="panel-docs">Docs</button>
+      <button type="button" role="tab" id="tab-metrics" aria-controls="panel-metrics">Metrics</button>
     </div>
 
     <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
@@ -769,6 +831,29 @@
       <div class="diagram-frame"><div class="diagram-view" id="diagram-container"></div></div>
     </section>
 
+    <section id="panel-graph" role="tabpanel" aria-labelledby="tab-graph">
+      <h2>Knowledge Graph <span class="h2-note">live from Neo4j</span></h2>
+      <p class="section-lead">Read from the Neo4j database when you open a view, not rebuilt from the analysis: the Cypher it ran is under the graph. Click a node or relationship to see the properties stored on it; <em>Show neighbours</em> fetches everything connected to a node.</p>
+      <div class="graph-totals" id="graph-totals"></div>
+      <div class="graph-views" id="graph-views" role="group" aria-label="Graph view"></div>
+      <p class="graph-desc" id="graph-desc"></p>
+      <div class="graph-frame" id="graph-frame">
+        <div class="diagram-tools" role="toolbar" aria-label="Graph controls">
+          <button type="button" class="secondary" data-act="fit" title="Fit the whole graph in view">Fit</button>
+          <button type="button" class="secondary" data-act="labels" aria-pressed="true">Labels</button>
+          <button type="button" class="secondary" data-act="full" aria-pressed="false">Full screen</button>
+          <span class="hint">Scroll to zoom · drag to move · click a node</span>
+        </div>
+        <div class="graph-body">
+          <div class="graph-canvas" id="graph-canvas"></div>
+          <aside class="graph-details" id="graph-details" aria-live="polite"></aside>
+        </div>
+      </div>
+      <div class="graph-legend" id="graph-legend"></div>
+      <p class="graph-note" id="graph-note"></p>
+      <details class="graph-cypher"><summary>Cypher run against Neo4j for this view</summary><pre id="graph-cypher"></pre></details>
+    </section>
+
     <section id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions">
       <h2>Architecture Decisions <span class="h2-note">reconstructed from history</span></h2>
       <p class="section-lead">Decision points are detected deterministically (dependencies adopted or replaced, infrastructure and module groups introduced, violations introduced or resolved). Nearby commits are ranked by relevance = 0.3·time + 0.45·graph + 0.25·text, and the AI writes each record only from that evidence. Reasons are inferred, never confirmed intent.</p>
@@ -778,6 +863,16 @@
     <section id="panel-docs" role="tabpanel" aria-labelledby="tab-docs">
       <h2>Documentation <span class="h2-note">AI-written, grounded in the graph</span></h2>
       <div id="documentation"></div>
+    </section>
+
+    <section id="panel-metrics" role="tabpanel" aria-labelledby="tab-metrics">
+      <h2>Metrics <span class="h2-note">measured on this analysis</span></h2>
+      <div class="metrics-head">
+        <span class="grow" id="metrics-repo"></span>
+        <button type="button" class="secondary" id="metrics-refresh">Refresh</button>
+        <a class="eval-link" href="/evaluation" target="_blank" rel="noopener">Benchmark results &rarr;</a>
+      </div>
+      <div id="metrics-body"></div>
     </section>
   </div>
 
@@ -896,6 +991,45 @@
     if (zoom) zoom.refresh();
   }
 
+  // ---------- full screen ----------
+  // Full screen for `frame`, toggled by `button`. Without the Fullscreen API (iPhone Safari),
+  // or when the browser refuses or never answers (some embedded browsers), a fixed overlay
+  // covers the page instead. onChange(full, upgraded) runs on every change; `upgraded` is
+  // true when real full screen arrived after the overlay (the frame changed size again).
+  function fullScreen(frame, button, onChange) {
+    const isFull = () => document.fullscreenElement === frame || frame.classList.contains('pseudo-full');
+
+    function changed() {
+      const upgraded = document.fullscreenElement === frame && frame.classList.contains('pseudo-full');
+      if (upgraded) frame.classList.remove('pseudo-full');
+      const full = isFull();
+      button.textContent = full ? 'Exit full screen' : 'Full screen';
+      button.setAttribute('aria-pressed', String(full));
+      document.body.classList.toggle('diagram-full', !!document.querySelector('.pseudo-full'));
+      onChange(full, upgraded);
+    }
+
+    function toggle() {
+      if (document.fullscreenElement === frame) { document.exitFullscreen(); return; }
+      if (frame.classList.contains('pseudo-full')) { frame.classList.remove('pseudo-full'); changed(); return; }
+      const pseudo = () => {
+        if (isFull()) return;
+        frame.classList.add('pseudo-full');
+        changed();
+      };
+      if (!document.fullscreenEnabled || !frame.requestFullscreen) { pseudo(); return; }
+      let answered = false;
+      frame.requestFullscreen().then(() => { answered = true; }, () => { answered = true; pseudo(); });
+      setTimeout(() => { if (!answered) pseudo(); }, 1000);
+    }
+
+    document.addEventListener('fullscreenchange', changed);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && frame.classList.contains('pseudo-full')) toggle();
+    });
+    return toggle;
+  }
+
   // ---------- diagram zoom and full screen ----------
   const ZOOM_MIN = 0.05, ZOOM_MAX = 4, ZOOM_STEP = 1.25, FIT_MAX = 2;
   const zoomers = new Map();   // diagram view element -> its zoom controls
@@ -959,39 +1093,11 @@
       view.scrollTop = 0;
     }
 
-    const isFull = () => document.fullscreenElement === frame || frame.classList.contains('pseudo-full');
-
-    function fullChanged() {
-      if (document.fullscreenElement === frame && frame.classList.contains('pseudo-full')) {
-        frame.classList.remove('pseudo-full');   // real full screen arrived after the overlay
-        if (beforeFull !== null) setTimeout(fit, 0);
-      }
-      const full = isFull();
-      fullBtn.textContent = full ? 'Exit full screen' : 'Full screen';
-      fullBtn.setAttribute('aria-pressed', String(full));
-      document.body.classList.toggle('diagram-full', frame.classList.contains('pseudo-full'));
+    // Full screen fits the diagram; leaving it restores the zoom from before.
+    const toggleFull = fullScreen(frame, fullBtn, (full, upgraded) => {
+      if (upgraded && beforeFull !== null) setTimeout(fit, 0);
       if (full && beforeFull === null) { beforeFull = scale; fit(); }
       else if (!full && beforeFull !== null) { apply(beforeFull); beforeFull = null; }
-    }
-
-    function toggleFull() {
-      if (document.fullscreenElement === frame) { document.exitFullscreen(); return; }
-      if (frame.classList.contains('pseudo-full')) { frame.classList.remove('pseudo-full'); fullChanged(); return; }
-      // Without the Fullscreen API (iPhone Safari), or when the browser refuses or never
-      // answers (some embedded browsers), cover the page with a fixed overlay instead.
-      const pseudo = () => {
-        if (document.fullscreenElement === frame || frame.classList.contains('pseudo-full')) return;
-        frame.classList.add('pseudo-full');
-        fullChanged();
-      };
-      if (!document.fullscreenEnabled || !frame.requestFullscreen) { pseudo(); return; }
-      let answered = false;
-      frame.requestFullscreen().then(() => { answered = true; }, () => { answered = true; pseudo(); });
-      setTimeout(() => { if (!answered) pseudo(); }, 1000);
-    }
-    document.addEventListener('fullscreenchange', fullChanged);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && frame.classList.contains('pseudo-full')) toggleFull();
     });
 
     tools.addEventListener('click', (e) => {
@@ -1035,6 +1141,390 @@
   }
   document.querySelectorAll('.diagram-frame').forEach(setupZoom);
 
+  // ---------- knowledge graph, live from Neo4j ----------
+  const VIS_URL = 'https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js';
+  const GRAPH_VIEWS = [
+    ['model', 'Data model'], ['code', 'Code structure'], ['dependencies', 'Module dependencies'],
+    ['history', 'History'], ['temporal', 'Time travel'], ['decisions', 'Decisions'], ['everything', 'Everything'],
+  ];
+  const GC = { text: '#f2f2f2', dim: '#999999', faint: '#5f5f5f', bg: '#0a0a0a', surface: '#161616', surface2: '#202020' };
+  const NODE_STYLE = {
+    Module:    { glyph: '▬', shape: 'box', color: { background: GC.text, border: GC.text }, font: { color: GC.bg } },
+    HModule:   { glyph: '▭', shape: 'box', color: { background: GC.surface, border: GC.dim }, font: { color: GC.text },
+                 shapeProperties: { borderDashes: [4, 3] } },
+    Class:     { glyph: '◆', shape: 'diamond', size: 11, color: { background: GC.dim, border: GC.text } },
+    Function:  { glyph: '●', shape: 'dot', size: 6, color: { background: GC.faint, border: GC.dim } },
+    Commit:    { glyph: '■', shape: 'square', size: 7, color: { background: GC.surface2, border: GC.text } },
+    Developer: { glyph: '▲', shape: 'triangle', size: 13, color: { background: GC.text, border: GC.text } },
+    Snapshot:  { glyph: '⬢', shape: 'hexagon', size: 14, color: { background: GC.dim, border: GC.text } },
+    Decision:  { glyph: '★', shape: 'star', size: 17, color: { background: GC.text, border: GC.text } },
+  };
+  const EDGE_STYLE = {
+    CONTAINS: { color: GC.faint }, IMPORTS: { color: GC.text }, CALLS: { color: GC.dim, dashes: [6, 4] },
+    AUTHORED: { color: GC.dim }, MODIFIED: { color: GC.faint }, NEXT: { color: GC.text, width: 2.5 },
+    AT: { color: GC.dim, dashes: [3, 3] }, H_IMPORTS: { color: GC.dim }, EXISTS_IN: { color: GC.faint, dashes: [2, 4] },
+    EVIDENCED_BY: { color: GC.text, dashes: [6, 4] }, AFFECTS: { color: GC.dim },
+  };
+  const graph = { analysisId: null, view: 'model', network: null, nodes: null, edges: null, data: null,
+                  byId: new Map(), edgeById: new Map(), labels: true, loading: 0 };
+  let visReady = null;
+  const fmtN = (n) => Number(n).toLocaleString();
+
+  $('graph-views').innerHTML = GRAPH_VIEWS.map(([id, title]) =>
+    `<button type="button" class="secondary" data-view="${id}" aria-pressed="false">${title}</button>`).join('');
+  $('graph-views').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-view]');
+    if (b) loadGraph(b.dataset.view);
+  });
+
+  const graphFrame = $('graph-frame');
+  const toggleGraphFull = fullScreen(graphFrame, graphFrame.querySelector('[data-act=full]'), () => {
+    setTimeout(() => { if (graph.network) { graph.network.redraw(); graph.network.fit(); } }, 60);
+  });
+  graphFrame.querySelector('.diagram-tools').addEventListener('click', (e) => {
+    const act = e.target.closest('button') && e.target.closest('button').dataset.act;
+    if (act === 'fit' && graph.network) graph.network.fit({ animation: { duration: 300 } });
+    else if (act === 'labels') {
+      graph.labels = !graph.labels;
+      e.target.closest('button').setAttribute('aria-pressed', String(graph.labels));
+      if (graph.nodes && graph.data.view !== 'model') {
+        graph.nodes.update(graph.nodes.getIds().map((id) => ({ id, label: nodeLabel(graph.byId.get(id), false) })));
+      }
+    } else if (act === 'full') toggleGraphFull();
+  });
+
+  function loadVis() {
+    if (window.vis && window.vis.Network) return Promise.resolve();
+    if (!visReady) {
+      visReady = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = VIS_URL;
+        s.onload = resolve;
+        s.onerror = () => { visReady = null; reject(new Error('Could not load the graph viewer (vis-network) from the CDN.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return visReady;
+  }
+
+  function textTip(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div;
+  }
+
+  function nodeLabel(n, model) {
+    return model || graph.labels ? n.caption : ' ';
+  }
+
+  function visNode(n, model) {
+    const { glyph, ...style } = NODE_STYLE[model ? n.props.label : n.label] || NODE_STYLE.Function;
+    const lit = { background: GC.dim, border: GC.text };    // selected / hovered, instead of vis-network's blue
+    const node = { ...style, id: n.id, label: nodeLabel(n, model), borderWidthSelected: 3,
+                   color: { ...style.color, highlight: lit, hover: lit },
+                   title: textTip(`${n.label}: ${n.props.path || n.props.title || n.caption}`) };
+    if (model) {
+      node.size = 24;
+      node.font = { ...(style.font || {}), size: 14 };
+      node.title = textTip(`${fmtN(n.props.nodes)} ${n.props.label} nodes`);
+    }
+    return node;
+  }
+
+  function visEdge(e, model) {
+    const st = EDGE_STYLE[e.type] || { color: GC.dim };
+    const edge = { id: e.id, from: e.from, to: e.to, dashes: st.dashes || false, width: st.width || 1,
+                   color: { color: st.color, highlight: GC.text, hover: GC.text }, title: textTip(e.type) };
+    if (model) {
+      edge.label = e.caption;
+      edge.font = { color: GC.dim, size: 11, face: 'JetBrains Mono', strokeWidth: 3, strokeColor: GC.bg };
+      edge.width = Math.min(6, 1 + Math.log10(e.props.relationships));
+      edge.smooth = { type: 'curvedCW', roundness: 0.15 };
+      edge.title = textTip(`${fmtN(e.props.relationships)} ${e.type} relationships`);
+    }
+    return edge;
+  }
+
+  function destroyGraph() {
+    if (graph.network) graph.network.destroy();
+    graph.network = graph.nodes = graph.edges = graph.data = null;
+    graph.byId = new Map();
+    graph.edgeById = new Map();
+  }
+
+  // A new analysis replaces what Neo4j holds; the graph is read again when the tab is next shown.
+  function resetGraph() {
+    graph.loading++;
+    graph.analysisId = null;
+    destroyGraph();
+    for (const id of ['graph-canvas', 'graph-details', 'graph-totals', 'graph-legend', 'graph-note', 'graph-cypher', 'graph-desc']) {
+      $(id).innerHTML = '';
+    }
+  }
+
+  function showGraph() {
+    if (current && graph.analysisId !== current.analysis_id) loadGraph(graph.view);
+  }
+
+  async function loadGraph(view) {
+    if (!current) return;
+    const id = current.analysis_id;
+    const token = ++graph.loading;
+    graph.view = view;
+    graph.analysisId = id;
+    $('graph-views').querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+    destroyGraph();
+    $('graph-canvas').innerHTML = pending('Reading the graph from Neo4j');
+    $('graph-details').innerHTML = '<p class="muted">Click a node or a relationship to see what Neo4j stores on it.</p>';
+    try {
+      const [, data] = await Promise.all([loadVis(), (async () => {
+        const resp = await fetch(`/graph?analysis_id=${encodeURIComponent(id)}&view=${encodeURIComponent(view)}`);
+        if (!resp.ok) throw new Error(await errorDetail(resp, 'Graph request failed'));
+        return resp.json();
+      })()]);
+      if (token !== graph.loading || !current || current.analysis_id !== id) return;
+      renderGraph(data);
+    } catch (err) {
+      if (token !== graph.loading) return;
+      graph.analysisId = null;           // let the next visit try again
+      $('graph-canvas').innerHTML = `<div class="error-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderGraph(data) {
+    const model = data.view === 'model';
+    const totals = data.totals;
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    $('graph-totals').innerHTML = `Neo4j holds <strong>${fmtN(sum(totals.nodes))}</strong> nodes and
+      <strong>${fmtN(sum(totals.relationships))}</strong> relationships for <code>${escapeHtml(data.repo_url)}</code>.`;
+    $('graph-desc').textContent = data.description;
+    $('graph-cypher').textContent = data.cypher.join(';\n\n') + ';'
+      + (data.cypher.some((q) => q.includes('$ids')) ? '\n\n// $ids = the element ids of the nodes the queries above returned' : '');
+
+    graph.data = data;
+    graph.byId = new Map(data.nodes.map((n) => [n.id, n]));
+    graph.edgeById = new Map(data.edges.map((e) => [e.id, e]));
+    const canvas = $('graph-canvas');
+    canvas.innerHTML = '';
+    if (!data.nodes.length) {
+      canvas.innerHTML = pending('Nothing is stored for this view yet.', false);
+    } else {
+      graph.nodes = new vis.DataSet(data.nodes.map((n) => visNode(n, model)));
+      graph.edges = new vis.DataSet(data.edges.map((e) => visEdge(e, model)));
+      const big = data.edges.length > 400;
+      graph.network = new vis.Network(canvas, { nodes: graph.nodes, edges: graph.edges }, {
+        autoResize: true,
+        layout: { improvedLayout: data.nodes.length < 150 },
+        physics: {
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: { gravitationalConstant: model ? -120 : -45, springLength: model ? 200 : 70, avoidOverlap: 0.4 },
+          stabilization: { iterations: big ? 250 : 400, updateInterval: 50 },
+        },
+        interaction: { hover: true, tooltipDelay: 120, hideEdgesOnDrag: big, keyboard: false },
+        nodes: { font: { face: 'JetBrains Mono', size: 11, color: GC.text }, borderWidth: 1.5 },
+        edges: { arrows: { to: { enabled: true, scaleFactor: 0.5 } }, smooth: big ? false : { type: 'continuous' } },
+      });
+      const net = graph.network;
+      // Settle once, then stop moving so nodes stay where the viewer drags them.
+      net.once('stabilizationIterationsDone', () => { net.setOptions({ physics: false }); net.fit(); });
+      net.on('click', (p) => {
+        if (p.nodes.length) showGraphNode(p.nodes[0]);
+        else if (p.edges.length) showGraphEdge(p.edges[0]);
+      });
+    }
+
+    const shown = {};
+    data.nodes.forEach((n) => { shown[n.label] = (shown[n.label] || 0) + 1; });
+    const labels = model ? Object.keys(totals.nodes) : Object.keys(shown);
+    const types = [...new Set(data.edges.map((e) => e.type))];
+    $('graph-legend').innerHTML = labels.sort().map((l) => {
+      const glyph = (NODE_STYLE[l] || {}).glyph || '•';
+      const count = model ? fmtN(totals.nodes[l]) : `${fmtN(shown[l])} of ${fmtN(totals.nodes[l] || shown[l])}`;
+      return `<span><span class="glyph">${glyph}</span>${escapeHtml(l)} ${count}</span>`;
+    }).join('') + types.sort().map((t) => {
+      const line = (EDGE_STYLE[t] || {}).dashes ? '╌╌▸' : '──▸';
+      return `<span><span class="glyph">${line}</span>${escapeHtml(t)}</span>`;
+    }).join('');
+    const cut = Object.entries(data.truncated || {}).map(([k, v]) => v.total ? `${fmtN(v.shown)} of ${fmtN(v.total)} ${k}` : `the first ${fmtN(v.shown)} ${k}`);
+    $('graph-note').textContent = cut.length
+      ? `Showing ${cut.join(', ')} to keep the view readable (the limits are in the Cypher below); Show neighbours on any node reads more.`
+      : '';
+  }
+
+  function propTable(props) {
+    return `<table>${Object.entries(props).map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join('')}</table>`;
+  }
+
+  function showGraphNode(id) {
+    const n = graph.byId.get(id);
+    if (!n) return;
+    const box = $('graph-details');
+    if (graph.data.view === 'model') {
+      box.innerHTML = `<span class="badge">Label</span><h4>${escapeHtml(n.props.label)}</h4>
+        <p>${fmtN(n.props.nodes)} nodes. Open a view above to see them.</p>`;
+      return;
+    }
+    const degree = graph.network.getConnectedEdges(id).length;
+    box.innerHTML = `<span class="badge">${escapeHtml(n.label)}</span><h4>${escapeHtml(n.caption)}</h4>
+      ${propTable(n.props)}
+      <p class="muted">${degree} relationship${degree === 1 ? '' : 's'} shown.</p>
+      <button type="button" class="secondary" id="graph-expand">Show neighbours</button>
+      <p class="muted">Read from Neo4j with:</p><pre>MATCH (n) WHERE elementId(n) = '${escapeHtml(id)}'\nRETURN n</pre>`;
+    $('graph-expand').addEventListener('click', () => expandGraphNode(id));
+  }
+
+  function showGraphEdge(id) {
+    const e = graph.edgeById.get(id);
+    if (!e) return;
+    const name = (nid) => { const n = graph.byId.get(nid); return n ? `${n.label} ${n.caption}` : nid; };
+    const props = e.props;
+    $('graph-details').innerHTML = `<span class="badge">Relationship</span><h4>${escapeHtml(e.type)}</h4>
+      <p>${escapeHtml(name(e.from))}<br>&rarr; ${escapeHtml(name(e.to))}</p>
+      ${Object.keys(props).length ? propTable(props) : '<p class="muted">No properties stored on it.</p>'}`;
+  }
+
+  async function expandGraphNode(id) {
+    const btn = $('graph-expand');
+    const analysisId = graph.analysisId;
+    const net = graph.network;
+    btn.disabled = true;
+    btn.textContent = 'Reading from Neo4j…';
+    try {
+      const resp = await fetch(`/graph/neighbours?analysis_id=${encodeURIComponent(analysisId)}&node_id=${encodeURIComponent(id)}`);
+      if (!resp.ok) throw new Error(await errorDetail(resp, 'Neighbours request failed'));
+      const data = await resp.json();
+      if (graph.network !== net) return;
+      const at = net.getPositions([id])[id] || { x: 0, y: 0 };
+      const fresh = data.nodes.filter((n, i, all) => !graph.byId.has(n.id) && all.findIndex((m) => m.id === n.id) === i);
+      fresh.forEach((n) => graph.byId.set(n.id, n));
+      const radius = 90 + 5 * fresh.length;
+      graph.nodes.add(fresh.map((n, i) => {
+        const a = (2 * Math.PI * i) / Math.max(1, fresh.length);
+        return { ...visNode(n, false), x: at.x + radius * Math.cos(a), y: at.y + radius * Math.sin(a) };
+      }));
+      const newEdges = data.edges.filter((e) => !graph.edgeById.has(e.id));
+      newEdges.forEach((e) => graph.edgeById.set(e.id, e));
+      graph.edges.add(newEdges.map((e) => visEdge(e, false)));
+      btn.textContent = `Added ${fresh.length} node${fresh.length === 1 ? '' : 's'} and ${newEdges.length} relationship${newEdges.length === 1 ? '' : 's'}`
+        + (data.more ? ' (the first 60)' : '');
+      const q = document.createElement('pre');
+      q.textContent = data.cypher[0];
+      btn.after(q);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Show neighbours';
+      btn.insertAdjacentHTML('afterend', `<div class="error-box">${escapeHtml(err.message)}</div>`);
+    }
+  }
+
+  // ---------- metrics of this analysis ----------
+  const STAGE_NAMES = {
+    clone: 'Clone', parse: 'Parse the code', graph_load: 'Load the graph into Neo4j', rules: 'Check the rules',
+    diagram: 'Build the diagram', history_mining: 'Mine the git history', snapshots: 'Rebuild past snapshots',
+    history_load: 'Save the history to Neo4j',
+  };
+  let metricsToken = 0;
+  $('metrics-refresh').addEventListener('click', loadMetrics);
+
+  const esc = escapeHtml;
+
+  // Cells are HTML: escape anything that comes from the repository.
+  function mtable(headers, rows, numeric = []) {
+    const head = headers ? `<thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>` : '';
+    return `<table class="metric-table">${head}<tbody>${rows.map((r) =>
+      `<tr>${r.map((c, i) => `<td${numeric.includes(i) ? ' class="num"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  function mblock(title, content, note) {
+    return `<div class="metric-block"><h3>${esc(title)}</h3>${content}${note ? `<p class="note">${note}</p>` : ''}</div>`;
+  }
+
+  function resetMetrics() {
+    metricsToken++;
+    $('metrics-body').innerHTML = '';
+    $('metrics-repo').innerHTML = '';
+  }
+
+  async function loadMetrics() {
+    if (!current) return;
+    const id = current.analysis_id;
+    const token = ++metricsToken;
+    const body = $('metrics-body');
+    if (!body.innerHTML) body.innerHTML = pending('Collecting the metrics');
+    try {
+      const resp = await fetch(`/metrics?analysis_id=${encodeURIComponent(id)}`);
+      if (!resp.ok) throw new Error(await errorDetail(resp, 'Metrics request failed'));
+      const m = await resp.json();
+      if (token !== metricsToken || !current || current.analysis_id !== id) return;
+      renderMetrics(m);
+    } catch (err) {
+      if (token === metricsToken) body.innerHTML = `<div class="error-box">${esc(err.message)}</div>`;
+    }
+  }
+
+  function renderMetrics(m) {
+    const a = m.architecture, s = m.size, g = m.graph, t = m.trend;
+    $('metrics-repo').innerHTML = `<code>${esc(m.repo_url)}</code> at <code>${esc((m.head_sha || '').slice(0, 7))}</code>.
+      AI usage grows as the AI sections load; press Refresh to update.`;
+
+    const cards = [
+      [a.health == null ? 'N/A' : a.health, 'architecture health'], [a.violations, 'violations'],
+      [fmtN(s.files), 'files parsed'], [fmtN(s.classes), 'classes'], [fmtN(s.functions), 'functions'],
+      [fmtN(g.nodes), 'nodes in Neo4j'], [fmtN(g.relationships), 'relationships in Neo4j'],
+      [fmtN(s.commits), 'commits mined'], [s.contributors, 'contributors'], [s.snapshots, 'history snapshots'],
+      [`${m.timings.total}s`, 'analysis time'],
+    ];
+    let html = `<div class="stats compact">${cards.map(([v, l]) =>
+      `<div class="stat"><span class="value">${esc(v)}</span><span class="label">${esc(l)}</span></div>`).join('')}</div>`;
+
+    html += mblock('Architecture rules',
+      mtable(['Rule', 'Severity', 'Edges checked', 'Violations', 'Rate'], a.rules.map((r) =>
+        [`<code>${esc(r.rule)}</code>`, r.severity ?? '–', fmtN(r.edges_checked), r.violations,
+         r.rate == null ? '–' : `${(r.rate * 100).toFixed(1)}%`]), [1, 2, 3, 4]),
+      `Health <strong>${esc(a.health ?? 'not scored')}</strong>, weighted violations ${esc(a.weighted_violations)}.
+       A rule's rate is its violations ÷ the dependencies it judged; health = 100 · (1 − Σ severity·rate ÷ Σ severity)
+       over the rules that judged anything. The original formula (100 − 100 · weighted violations ÷ rules) gives
+       ${esc(a.health_legacy)} here: it falls to 0 after a few violations in any real repository, which is why it was replaced.`);
+
+    const layers = Object.entries(a.layers).sort((x, y) => y[1] - x[1]);
+    html += `<div class="two-col">${mblock('Modules per layer', mtable(['Layer', 'Modules'],
+      layers.map(([k, v]) => [esc(k), v]), [1]))}${mblock('Health over time', mtable(null, [
+        ['First snapshot', t.first ?? '–'], ['Now (HEAD)', t.last ?? '–'],
+        ['Lowest', t.lowest ? `${esc(t.lowest.health)} at <code>${esc(t.lowest.short)}</code> (${esc(shortDate(t.lowest.date))})` : '–'],
+        ['Snapshots scored', `${t.snapshots_scored} of ${t.snapshots}`]]))}</div>`;
+
+    const stages = Object.entries(m.timings.stages);
+    const longest = Math.max(0.01, ...stages.map(([, v]) => v));
+    html += mblock('Time per stage', mtable(['Stage', 'Seconds', ''], stages.map(([k, v]) =>
+      [esc(STAGE_NAMES[k] || k), v, `<span class="metric-bar" style="width:${Math.max(2, Math.round(160 * v / longest))}px"></span>`]), [1]),
+      `Total ${esc(m.timings.total)} s.`);
+
+    const sizeRows = [
+      ['Imports between modules', fmtN(s.imports)], ['Resolved calls between functions', fmtN(s.calls)],
+      ['History', `${esc(shortDate(s.first_commit))} → ${esc(shortDate(s.last_commit))}${s.history_truncated ? ' (truncated to the most recent commits)' : ''}`],
+    ];
+    if (s.scope && s.scope.mode === 'large') sizeRows.push(['Large-repository mode', `${fmtN(s.scope.files_included)} of ${fmtN(s.scope.files_total)} source files analyzed`]);
+    if (s.scope && s.scope.subdir) sizeRows.push(['Folder analyzed', `<code>${esc(s.scope.subdir)}</code>`]);
+    html += `<div class="two-col">${mblock('Code and history', mtable(null, sizeRows))}${mblock('Stored in Neo4j',
+      mtable(['Node label', 'Count'], Object.entries(g.by_label).sort((x, y) => y[1] - x[1]).map(([k, v]) => [esc(k), fmtN(v)]), [1])
+      + '<br>' + mtable(['Relationship', 'Count'], Object.entries(g.by_type).sort((x, y) => y[1] - x[1]).map(([k, v]) => [esc(k), fmtN(v)]), [1]))}</div>`;
+
+    html += mblock('AI usage', m.ai_usage.length ? mtable(
+      ['Feature', 'Requests', 'AI calls', 'From cache', 'Failed calls', 'Tokens in', 'Tokens out', 'Seconds', 'Model'],
+      m.ai_usage.map((u) => [esc(u.feature), u.requests, u.calls, u.from_cache, u.failures, fmtN(u.prompt_tokens),
+                             fmtN(u.completion_tokens), u.seconds, esc(u.model || '–')]), [1, 2, 3, 4, 5, 6, 7])
+      : '<p class="note">No AI feature has run on this analysis yet.</p>',
+      'A request answered from the cache makes no AI calls. Failed calls were retried or fell back; the deterministic results never depend on them.');
+
+    if (m.review) {
+      html += mblock('Last code review', mtable(null, [
+        ['Commits reviewed', `${m.review.commits} (<code>${esc(m.review.range)}</code>)`], ['Findings', m.review.findings],
+        ['AI findings dropped as unverified', m.review.unverified], ['Withdrawn on the double-check', m.review.rejected_on_check]]));
+    }
+    html += `<p class="note" style="margin-top:1.4rem">Accuracy of each feature, measured on benchmarks: <a href="/evaluation" target="_blank" rel="noopener">benchmark results</a>.</p>`;
+    $('metrics-body').innerHTML = html;
+  }
+
   // ---------- result tabs ----------
   const tabBar = document.querySelector('.tabs');
   const tabs = [...tabBar.querySelectorAll('[role=tab]')];
@@ -1054,6 +1544,8 @@
       tabBar.scrollLeft = tab.offsetLeft + tab.offsetWidth - tabBar.clientWidth;
     }
     // Scrolled down into the old tab: start the new one at its top, just under the bar.
+    if (tab.id === 'tab-graph') showGraph();
+    if (tab.id === 'tab-metrics') loadMetrics();
     if (!resultsEl.offsetParent) return;
     const below = tabBar.getBoundingClientRect().bottom + parseFloat(getComputedStyle(tabBar).marginBottom);
     const top = panelOf(tab).getBoundingClientRect().top;
@@ -1245,7 +1737,7 @@
     $('stat-functions').textContent = data.functions_found;
     $('stat-nodes').textContent = data.nodes_loaded;
     $('stat-commits').textContent = h.commits ?? 0;
-    $('stat-authors').textContent = (h.contributors || []).length;
+    $('stat-authors').textContent = h.contributor_count ?? (h.contributors || []).length;
     $('overview-note').textContent = `${data.head_sha ? data.head_sha.slice(0, 7) + ' · ' : ''}analyzed in ${data.seconds}s`;
     $('overview-note').title = Object.entries(data.timings || {}).map(([k, v]) => `${k.replace('_', ' ')} ${v}s`).join(' · ');
 
@@ -1257,7 +1749,11 @@
 
     $('decisions').innerHTML = pending('Waiting for the drift explanations to finish', false);
     $('documentation').innerHTML = pending('Waiting for the decision records to finish', false);
+    resetGraph();
+    resetMetrics();
     resultsEl.style.display = 'block';
+    if ($('tab-graph').getAttribute('aria-selected') === 'true') showGraph();
+    if ($('tab-metrics').getAttribute('aria-selected') === 'true') loadMetrics();
   }
 
   async function runGenerativeSections(data) {

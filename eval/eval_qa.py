@@ -30,6 +30,7 @@ import tempfile
 
 from common import table, write_report
 
+import llm
 import qa_engine
 from agents.qa_graph import route_intents
 
@@ -459,7 +460,7 @@ def main():
                            r.get("precision", ""), r.get("recall", ""),
                            f"{r.get('citations_valid', 0)}/{r.get('citations_checked', 0)}"] for r in t["results"]]), ""]
         md += ["Single runs at temperature 0.2; answers can vary between runs. Full answers are in `qa.json`."]
-    print(write_report("qa", "\n".join(md), {"routing": routing, "live": [
+    print(write_report("qa", "\n".join(md), {"routing": routing, "provider": llm.describe("qa") if live else None, "live": [
         {**t, "results": [{k: v for k, v in r.items()} for r in t["results"]]} for t in live]}))
 
 

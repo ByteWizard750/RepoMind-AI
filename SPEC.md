@@ -269,7 +269,7 @@ the target, it was a deliberate choice:
 
 | Target | As built | Why |
 |---|---|---|
-| React + TypeScript dashboard, React Flow, Monaco | One plain HTML/JS page (`static/index.html`): result tabs, Mermaid diagrams with zoom and full screen, an SVG drift chart with time travel, ADR cards, chat panel | No build step or framework to maintain; everything the dashboard was meant to show is there |
+| React + TypeScript dashboard, React Flow, Monaco | One plain HTML/JS page (`static/index.html`): result tabs, Mermaid diagrams with zoom and full screen, a live view of the Neo4j graph (vis-network, instead of React Flow), an SVG drift chart with time travel, ADR cards, chat panel | No build step or framework to maintain; everything the dashboard was meant to show is there |
 | PostgreSQL for commits, PRs and reports | Neo4j holds the code graph and the history graph; generated results are cached in files (`cache.py`) | One graph store was enough; the cache only needs key → result |
 | LangGraph + LangChain | LangGraph; nodes are plain Python calling `llm.py`, no LangChain model wrappers | One shared LLM layer handles providers, key rotation, deadlines and retries |
 | GPT-4o / Gemini Pro | `gpt-oss-120b` on Amazon Bedrock (default) or Groq, through `llm.py` | Availability and cost; the provider is a setting |
@@ -1716,3 +1716,81 @@ on repositories built for it, rather than on arbitrary public ones.
 - Demo naming caught a rules nuance: a `handlers/` folder is the controller
   layer in the default rules, so event handlers there are judged as
   controllers.
+
+## Implementation Scope — Knowledge graph view (live from Neo4j)
+
+Asked for at the panel review: show the graph that is stored in Neo4j, not
+a picture derived from it.
+
+### What was built
+- `graph/explorer.py`: fixed, read-only views, each a set of Cypher queries
+  run in read transactions — **Data model** (one node per label and one edge
+  per `(label)-[TYPE]->(label)`, with counts), **Code structure** (Module,
+  Class, Function; CONTAINS, IMPORTS, CALLS), **Module dependencies**,
+  **History** (Developer, Commit, Module; AUTHORED, MODIFIED), **Time travel**
+  (Snapshot, the Commit each is AT, HModule; NEXT, AT, H_IMPORTS),
+  **Decisions** (Decision; EVIDENCED_BY, AFFECTS) and **Everything**. Each
+  label is capped (and the cap reported), relationships are fetched between
+  the returned nodes only, long property values are cut for display, and the
+  queries are returned with the result.
+- `GET /graph?analysis_id&view` and `GET /graph/neighbours?analysis_id&node_id`
+  (409 when the analysis is no longer the one Neo4j holds).
+- A **Graph** tab: totals of everything Neo4j holds, the view buttons,
+  vis-network (loaded from the CDN only when the tab is first opened) drawing
+  labels as grayscale shapes, click for a node's or relationship's stored
+  properties and the `elementId` query that reads it, *Show neighbours* to
+  expand a node from Neo4j, a legend with shown/total counts, the Cypher for
+  the view, and full screen (shared with the diagrams).
+
+### Verification
+- `tests/test_api.py::test_graph_views_read_neo4j`: the data model's counts
+  equal the analysis (modules, commits), code-structure edges connect only
+  returned nodes, history holds every commit, neighbours are adjacent, and
+  unknown views (404) and stale analyses (409) are refused.
+- On fastapi-realworld-example-app (705 nodes, 2,951 relationships) every view
+  loads in 1.2–3.5 s; "Everything" draws 547 nodes and 2,671 relationships.
+  Checked in the browser: node details, Show neighbours, full screen, phone
+  width, no console errors.
+
+## Implementation Scope — Metrics tab and Benchmark results page
+
+Asked for at the panel review: show all the metrics. Two kinds, shown in two
+places.
+
+### What was built
+- **Benchmark results page** (`/evaluation`, `static/evaluation.html`,
+  linked from the page subtitle and the Metrics tab): reads
+  `eval/results/*.json` and `*.md` through `GET /metrics/evaluation`
+  (`metrics.evaluation`) and shows, per benchmark, headline cards, the
+  detailed tables, the method (from the report), when it was measured, which
+  AI model, the script, the report's stated limits, and the full report
+  (`GET /metrics/report/{name}`, whitelisted names). Nothing is recomputed: the
+  numbers are the ones the eval scripts wrote, so re-running a benchmark
+  updates the page. Human ADR scores are read from `adr_rubric.md` once filled
+  in. The Q&A and ADR scripts now record the model in their JSON (the two
+  existing result files were given theirs: both runs used Bedrock
+  gpt-oss-120b, as the run logs show).
+- **Metrics tab** (`GET /metrics?analysis_id`, `metrics.analysis_metrics`):
+  health with per-rule severity, dependencies judged, violations and rate;
+  the legacy score with why it was replaced; modules per layer; health over
+  time (first, now, lowest); time per stage; sizes; Neo4j node and
+  relationship counts read now; and **AI usage per feature** — requests, AI
+  calls, answers from the cache, failed calls, tokens in and out, seconds and
+  model. Usage is recorded by `metrics.track` around each AI endpoint from
+  `llm`'s per-purpose counters, so features running at the same time don't
+  mix.
+
+### Bug found on the way
+- The Overview's "contributors" counted the top-10 list, so any repository
+  with more than 10 contributors showed 10 (fastapi-realworld has 13). The
+  history summary now carries `contributor_count`.
+
+### Verification
+- `tests/test_metrics.py`: headline numbers equal the result files, missing
+  files are reported, human rubric scores are averaged.
+  `tests/test_api.py`: the Metrics endpoint matches the analysis and Neo4j,
+  AI calls and tokens are counted per feature, stale analyses get 409, the
+  page and reports are served and other paths refused.
+- In the browser on fastapi-realworld: every number matches the Overview and
+  the Graph tab; one real question was counted (3 calls, 6,546 tokens in);
+  cached sections show 0 calls; both pages fit phone width.

@@ -1146,5 +1146,11 @@
         }
       ]
     }
-  ]
+  ],
+  "provider": {
+    "provider": "bedrock",
+    "model": "openai.gpt-oss-120b-1:0",
+    "keys": 1,
+    "parallelism": 4
+  }
 }

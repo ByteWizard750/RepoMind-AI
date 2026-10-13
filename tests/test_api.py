@@ -87,7 +87,7 @@ def test_analyze(analysis):
     h = analysis["history"]
     assert h["commits"] == 8 and len(h["snapshots"]) == 8 and not h["truncated"]
     assert [s["violations"] for s in h["snapshots"]] == [0, 0, 2, 2, 2, 2, 2, 0]
-    assert h["contributors"][0]["name"] == "Ada Dev"
+    assert h["contributors"][0]["name"] == "Ada Dev" and h["contributor_count"] == len(h["contributors"])
     assert set(analysis["timings"]) >= {"clone", "parse", "graph_load", "rules", "history_mining", "snapshots"}
 
 
@@ -109,11 +109,69 @@ def test_lazy_sections(client, analysis):
     assert client.get(f"/history/snapshot/99?analysis_id={analysis['analysis_id']}").status_code == 404
 
 
+def test_graph_views_read_neo4j(client, analysis):
+    aid = analysis["analysis_id"]
+    model = client.get(f"/graph?analysis_id={aid}").json()
+    assert model["view"] == "model" and model["totals"]["nodes"]["Module"] == analysis["files_parsed"]
+    assert model["totals"]["nodes"]["Commit"] == analysis["history"]["commits"]
+    assert {"IMPORTS", "CONTAINS", "AUTHORED"} <= {e["type"] for e in model["edges"]}
+    assert all(q.startswith("MATCH") for q in model["cypher"])
+
+    code = client.get(f"/graph?analysis_id={aid}&view=code").json()
+    ids = {n["id"] for n in code["nodes"]}
+    assert {n["label"] for n in code["nodes"]} == {"Module", "Class", "Function"}
+    assert code["edges"] and all(e["from"] in ids and e["to"] in ids for e in code["edges"])
+    assert {e["type"] for e in code["edges"]} <= {"CONTAINS", "IMPORTS", "CALLS"}
+
+    history = client.get(f"/graph?analysis_id={aid}&view=history").json()
+    assert sum(n["label"] == "Commit" for n in history["nodes"]) == analysis["history"]["commits"]
+
+    module = next(n for n in code["nodes"] if n["label"] == "Module" and n["caption"] == "controller.py")
+    near = client.get(f"/graph/neighbours?analysis_id={aid}&node_id={module['id']}").json()
+    assert near["nodes"] and all(e["from"] == module["id"] or e["to"] == module["id"] for e in near["edges"])
+
+    assert client.get(f"/graph?analysis_id={aid}&view=nope").status_code == 404
+    assert client.get("/graph?analysis_id=nope").status_code == 409
+    assert client.get(f"/graph/neighbours?analysis_id=nope&node_id={module['id']}").status_code == 409
+
+
 def test_ask(client, analysis):
     answer = client.post("/ask", json={"question": "How is this repository organized?"}).json()
     assert answer["intents"] == ["structural"]
     assert [e["tool"] for e in answer["evidence"]] == ["get_repository_overview"]
     assert "Confidence" in answer["answer"]
+
+
+def test_metrics_of_the_analysis(client, analysis, monkeypatch):
+    def counted_chat(messages, *, purpose, **kwargs):      # count usage like the real LLM layer does
+        result = fake_chat(messages, purpose=purpose, **kwargs)
+        llm._record(purpose, SimpleNamespace(usage=SimpleNamespace(prompt_tokens=100, completion_tokens=20)))
+        return result
+    monkeypatch.setattr(llm, "chat", counted_chat)
+    client.post("/ask", json={"question": "How is this repository organized?"})
+
+    m = client.get(f"/metrics?analysis_id={analysis['analysis_id']}").json()
+    assert m["size"]["files"] == analysis["files_parsed"] and m["size"]["commits"] == analysis["history"]["commits"]
+    assert m["graph"]["by_label"]["Module"] == analysis["files_parsed"]
+    assert m["graph"]["nodes"] == sum(m["graph"]["by_label"].values())
+    assert m["architecture"]["health"] == analysis["health_score"]
+    assert {r["rule"] for r in m["architecture"]["rules"]} == set(analysis["rule_checks"])
+    assert m["timings"]["stages"] == analysis["timings"] and m["trend"]["snapshots"] == len(analysis["history"]["snapshots"])
+    qa = next(u for u in m["ai_usage"] if u["feature"] == "Q&A")
+    assert qa["requests"] >= 1 and qa["calls"] >= 2 and qa["tokens"] == 120 * qa["calls"]
+
+    assert client.get("/metrics?analysis_id=nope").status_code == 409
+
+
+def test_evaluation_page_and_results(client):
+    assert "Benchmark results" in client.get("/evaluation").text
+    results = client.get("/metrics/evaluation").json()
+    assert {s["id"] for s in results["sections"]} | set(results["missing"]) == {"drift", "qa", "review", "adr", "efficiency"}
+    for s in results["sections"]:
+        assert s["headline"] and s["method"] and s["generated"]
+    assert client.get("/metrics/report/drift").text.startswith("# Drift detection evaluation")
+    assert client.get("/metrics/report/..%2Fserver").status_code == 404
+    assert client.get("/metrics/report/nope").status_code == 404
 
 
 def test_stale_and_busy(client, analysis):

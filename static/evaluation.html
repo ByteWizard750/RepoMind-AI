@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RepoMind Benchmarks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #161616;
+    --surface-2: #202020;
+    --border: #f2f2f2;
+    --text: #f2f2f2;
+    --text-dim: #999999;
+    --text-faint: #5f5f5f;
+    --invert-bg: #f2f2f2;
+    --invert-text: #0a0a0a;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    max-width: 980px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem;
+    color: var(--text); background: var(--bg);
+  }
+  a { color: var(--text); }
+  code { font-size: 0.92em; }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.8rem, 5vw, 2.4rem); font-weight: 700;
+    letter-spacing: -0.02em; text-transform: uppercase; margin: 0.6rem 0 0.5rem;
+  }
+  .back { font-size: 0.78rem; color: var(--text-dim); }
+  .lead { color: var(--text-dim); margin: 0 0 2rem; font-size: 0.88rem; max-width: 70ch; line-height: 1.6; }
+  section {
+    margin: 0 0 2rem; padding: 1.5rem; background: var(--surface);
+    border: 3px solid var(--border); box-shadow: 6px 6px 0 0 var(--border);
+  }
+  h2 {
+    font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 3px solid var(--border); padding-bottom: 0.65rem; margin: 0 0 1rem;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+  }
+  h2 .note { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: none; letter-spacing: 0; color: var(--text-dim); font-weight: 400; }
+  h3 { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 1.3rem 0 0.6rem; }
+  .meta { font-size: 0.74rem; color: var(--text-dim); line-height: 1.7; margin: 0 0 0.8rem; }
+  .method { font-size: 0.8rem; color: var(--text-dim); line-height: 1.65; margin: 0 0 1.1rem; max-width: 85ch; }
+  .method code { color: var(--text); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.8rem; }
+  .card { background: var(--surface-2); border: 2px solid var(--border); padding: 0.85rem 1rem; }
+  .card .value { font-family: 'Space Grotesk', sans-serif; font-size: 1.7rem; font-weight: 700; display: block; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .card .label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); display: block; margin-top: 0.3rem; }
+  .card .detail { font-size: 0.7rem; color: var(--text-dim); line-height: 1.5; display: block; margin-top: 0.35rem; }
+  .summary .card { text-decoration: none; color: var(--text); display: block; }
+  .summary .card:hover { background: var(--surface); }
+  .summary .card .section-name { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  details { margin: 0.7rem 0 0; border: 2px solid var(--text-faint); background: var(--bg); }
+  details > summary { cursor: pointer; padding: 0.55rem 0.8rem; font-size: 0.76rem; color: var(--text-dim); }
+  details[open] > summary { color: var(--text); border-bottom: 2px solid var(--text-faint); }
+  details > .inner { padding: 0.8rem; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.74rem; }
+  th, td { border: 2px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+  th { background: var(--surface-2); font-family: 'Space Grotesk', sans-serif; text-transform: uppercase; font-size: 0.66rem; letter-spacing: 0.04em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  ul.limits { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.76rem; color: var(--text-dim); line-height: 1.6; }
+  ul.limits li { margin-bottom: 0.35rem; }
+  .report { font-size: 0.8rem; line-height: 1.6; }
+  .report h1 { font-size: 1.2rem; margin-top: 0; }
+  .report h2 { font-size: 0.95rem; }
+  .report pre { overflow-x: auto; }
+  .pending, .error { padding: 0.8rem 1rem; border: 2px dashed var(--text-dim); color: var(--text-dim); font-size: 0.82rem; }
+  .error { border-style: solid; border-color: var(--text); color: var(--text); }
+  .rerun { font-size: 0.76rem; color: var(--text-dim); line-height: 1.7; }
+  .rerun code { color: var(--text); }
+  :focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+  @media (max-width: 560px) {
+    section { padding: 1.1rem; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .card .value { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+  <a class="back" href="/">&larr; Back to RepoMind</a>
+  <h1>Benchmark results</h1>
+  <p class="lead">How accurate RepoMind is, measured by the scripts in <code>eval/</code> against answers known in advance:
+    planted violations, real ADRs, ground truth from the graph and git, planted bugs. The numbers are read from
+    <code>eval/results/</code> when this page opens. Each section says how it was measured, when, with which AI model,
+    and its limits.</p>
+
+  <div id="content"><p class="pending">Reading the results&hellip;</p></div>
+
+<script>
+  const esc = (s) => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+  const inline = (md) => DOMPurify.sanitize(marked.parseInline(md || ''));
+  const isNum = (v) => typeof v === 'number' || /^-?[\d.,]+%?$|^\d+\/\d+$/.test(String(v));
+
+  // `name` in an already-escaped cell becomes <code>name</code>.
+  const codeSpans = (html) => html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  function table(t) {
+    const numeric = t.headers.map((_, i) => t.rows.length && t.rows.every((r) => isNum(r[i])));
+    return `<table><thead><tr>${t.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${
+      t.rows.map((r) => `<tr>${r.map((c, i) => `<td${numeric[i] ? ' class="num"' : ''}>${codeSpans(esc(c === null ? '–' : c))}</td>`).join('')}</tr>`).join('')
+    }</tbody></table>`;
+  }
+
+  function card(h) {
+    return `<div class="card"><span class="value">${esc(h.value)}</span><span class="label">${esc(h.label)}</span>
+      <span class="detail">${esc(h.detail)}</span></div>`;
+  }
+
+  function section(s) {
+    const meta = [s.generated ? `Measured ${esc(s.generated)}` : null,
+                  s.model ? `AI model ${esc(s.model)}` : 'no AI involved',
+                  `script <code>${esc(s.script)}</code>`].filter(Boolean).join(' · ');
+    return `<section id="${esc(s.id)}">
+      <h2>${esc(s.title)} <span class="note">${esc(s.kind)}</span></h2>
+      <p class="meta">${meta}</p>
+      <p class="method">${inline(s.method)}</p>
+      <div class="cards">${s.headline.map(card).join('')}</div>
+      ${s.tables.map((t, i) => `<details${i === 0 ? ' open' : ''}><summary>${esc(t.title)}</summary><div class="inner">${table(t)}</div></details>`).join('')}
+      ${s.limits.length ? `<h3>Limits</h3><ul class="limits">${s.limits.map((l) => `<li>${inline(l)}</li>`).join('')}</ul>` : ''}
+      <details class="full" data-report="${esc(s.id)}"><summary>Full report (<code>eval/results/${esc(s.id)}.md</code>)</summary><div class="inner report"></div></details>
+    </section>`;
+  }
+
+  async function load() {
+    const box = document.getElementById('content');
+    try {
+      const resp = await fetch('/metrics/evaluation');
+      if (!resp.ok) throw new Error(`The results couldn't be read (HTTP ${resp.status}).`);
+      const data = await resp.json();
+      if (!data.sections.length) {
+        box.innerHTML = '<p class="error">No benchmark results found in eval/results/. Run the scripts listed below.</p>' + rerun();
+        return;
+      }
+      const summary = data.sections.map((s) => `<a class="card" href="#${esc(s.id)}">
+        <span class="section-name">${esc(s.title)}</span>
+        <span class="value">${esc(s.headline[0].value)}</span><span class="label">${esc(s.headline[0].label)}</span>
+        ${s.headline[1] ? `<span class="detail">${esc(s.headline[1].label)}: ${esc(s.headline[1].value)}</span>` : ''}</a>`).join('');
+      box.innerHTML = `<section class="summary"><h2>At a glance <span class="note">one line per benchmark</span></h2>
+          <div class="cards">${summary}</div></section>`
+        + data.sections.map(section).join('')
+        + (data.missing.length ? `<p class="error">Not available: ${data.missing.map(esc).join(', ')} (no result files, or they couldn't be read).</p>` : '')
+        + rerun();
+      box.querySelectorAll('details.full').forEach((d) => d.addEventListener('toggle', () => openReport(d)));
+    } catch (err) {
+      box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+    }
+  }
+
+  async function openReport(d) {
+    const inner = d.querySelector('.inner');
+    if (!d.open || inner.dataset.loaded) return;
+    inner.innerHTML = '<p class="pending">Loading&hellip;</p>';
+    try {
+      const resp = await fetch(`/metrics/report/${encodeURIComponent(d.dataset.report)}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      inner.innerHTML = DOMPurify.sanitize(marked.parse(await resp.text()));
+      inner.dataset.loaded = '1';
+    } catch (err) {
+      inner.innerHTML = `<p class="error">The report couldn't be loaded (${esc(err.message)}).</p>`;
+    }
+  }
+
+  function rerun() {
+    return `<section><h2>Re-running the benchmarks</h2><p class="rerun">From the <code>repoMindAI</code> folder:<br>
+      <code>python eval/eval_drift.py</code> (no AI) ·
+      <code>python eval/eval_qa.py</code> ·
+      <code>python eval/eval_review.py</code> ·
+      <code>python eval/eval_adr.py --synthesize</code> ·
+      <code>python eval/eval_efficiency.py</code><br>
+      Each writes its report to <code>eval/results/</code>; reload this page to see it. Human scores for the
+      reconstructed ADRs go in <code>eval/results/adr_rubric.md</code>.</p></section>`;
+  }
+
+  load();
+</script>
+</body>
+</html>
