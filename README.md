@@ -21,10 +21,10 @@ GitHub URL
    ▼
 Tree-sitter parsing (Python, JavaScript, TypeScript) ──► Neo4j: Module / Class / Function, CONTAINS / IMPORTS / CALLS
    │                                                          │
-   ├─ layers.py: folder/file patterns from rules.yaml ─────────┤
+   ├─ src/layers.py: folder/file patterns from rules.yaml ─────┤
    ├─ rule engine (Cypher) ⇄ in-memory evaluator (cross-checked) ──► violations, health score
-   ├─ history.py: one streamed `git log` ──────────────────────► Developer / Commit / MODIFIED
-   └─ snapshots.py: N sampled commits ─────────────────────────► Snapshot / HModule / H_IMPORTS {valid_from, valid_to}
+   ├─ src/history.py: one streamed `git log` ──────────────────► Developer / Commit / MODIFIED
+   └─ src/snapshots.py: N sampled commits ─────────────────────► Snapshot / HModule / H_IMPORTS {valid_from, valid_to}
                                                               │
                      LangGraph agents (LLM explains, never decides)
    drift_graph:  load_rules → evaluate → prioritize → explain → assemble
@@ -40,6 +40,8 @@ Tree-sitter parsing (Python, JavaScript, TypeScript) ──► Neo4j: Module / C
 **ADR relevance.** For each decision point, nearby commits are ranked by `relevance = 0.3·time + 0.45·graph + 0.25·text` — time decay in days and commits, overlap with the files and modules the decision concerns, and TF-IDF similarity over messages and tokenized file paths (no embeddings). Only commits above 0.35 become evidence. For those commits, the pull requests they came from (found through their merge commits, or a squash merge's "(#123)") and the issues their messages reference are fetched from GitHub and handed to the AI with them; the validator rejects a record that names a pull request it wasn't given.
 
 **Health score.** `health = 100 · (1 − Σ severity·violations/judged_edges ÷ Σ severity)` over the rules that had anything to judge. A repository with no layer-tagged dependencies is reported as *not scored*, not as 100. The original per-rule formula is kept as the "legacy score".
+
+For the complete technical specification, component contracts, and Neo4j graph metamodels, refer to [`docs/SPEC.md`](docs/SPEC.md).
 
 ## Quick start
 
@@ -166,31 +168,45 @@ Generated artifacts are cached by repository, commit, rules, prompt version and 
 ## Project layout
 
 ```
-server.py              FastAPI app and endpoints
-workspace.py           clone lifecycle, progress and cancel, analysis ids, URL validation
-preflight.py           before cloning: folder URLs, GitHub size/language check
-scope.py               what part of a repository is analyzed (large repos, folders)
-parser/                Tree-sitter extractors (Python, JS, TS), tsconfig path aliases
-graph/                 Neo4j schema, current-state loader, history/temporal loader, read-only graph views (explorer.py)
-layers.py              layer assignment from rules
-rules/                 rules config validation, Cypher engine, in-memory evaluator, scoring
-history.py             git history mining
-snapshots.py           sampled snapshots, diffs, valid-time intervals
-adr/                   decision-point detection, relevance scoring
-agents/                LangGraph agents: drift, ADR, Q&A, code review
-review/                review diff collection, GitHub issues
-review_cli.py          code review from the command line / CI
-ci/                    GitHub Actions workflow for reviews on every push
-qa_engine.py           Q&A tools (read-only graph queries, source access)
-docs_generator.py      map-reduce documentation
-llm.py                 Bedrock/Groq client, retries, key rotation, usage accounting
-cache.py               artifact cache
-static/index.html      the web UI (plain HTML/JS)
-static/evaluation.html the Benchmark results page
-metrics.py             metrics of an analysis (incl. AI usage per feature) and the benchmark summary
-eval/                  evaluation scripts and results
-tests/                 pytest suite
-demo/                  scripted demo repositories (ShopWise, TaskFlow) and the demo-day guide
+repoMindAI/
+├── src/                  # Core application source code
+│   ├── adr/              # Architecture Decision Record detection & relevance scoring
+│   ├── agents/           # LangGraph multi-agent state machines (drift, adr, qa, review)
+│   ├── graph/            # Neo4j schema, current-state loader, temporal history loader
+│   ├── parser/           # Tree-sitter AST extractors (Python, JS, TS) & tsconfig path resolver
+│   ├── review/           # Code review diff collection & GitHub issue integration
+│   ├── rules/            # Architecture rules config validation, Cypher engine, scoring
+│   ├── server.py         # FastAPI application & REST endpoints
+│   ├── workspace.py      # Git clone sandbox lifecycle, progress tracking & cancellation
+│   ├── preflight.py      # Pre-clone repository validation, scale checks & folder URLs
+│   ├── scope.py          # Large repository filtering & monorepo scope boundary
+│   ├── qa_engine.py      # Q&A tools: Cypher graph queries & source file inspection
+│   ├── docs_generator.py # Map-reduce architectural documentation generator
+│   ├── llm.py            # AWS Bedrock & Groq provider client, rotation & token accounting
+│   ├── cache.py          # Deterministic artifact cache
+│   ├── metrics.py        # Analysis metrics & benchmark aggregation
+│   ├── history.py        # Streamed git revision history mining
+│   ├── snapshots.py      # Sampled commit snapshots, diffs & temporal interval relationships
+│   ├── layers.py         # Pattern-to-layer classifier from rules.yaml
+│   └── review_cli.py     # Standalone code review CLI runner
+│
+├── docs/                 # Centralized documentation
+│   ├── README.md         # Documentation directory guide
+│   ├── SPEC.md           # Comprehensive system architecture specification
+│   ├── TESTING.md        # Test suite strategy, fixture documentation & test matrix
+│   └── diagram_output.md # Exported Mermaid architectural dependency diagram
+│
+├── tests/                # Automated pytest suite (211 tests across 18 test files)
+├── scripts/              # Verification utilities (check_llm.py, check_demo_repo.py)
+├── eval/                 # Accuracy evaluation benchmarks & markdown results
+├── demo/                 # Scripted demo repositories (ShopWise, TaskFlow)
+├── static/               # Frontend web interface (HTML/JS) & evaluation dashboard
+├── ci/                   # Reusable GitHub Actions workflow for automated PR/push review
+│
+├── rules.yaml            # Default architecture rules configuration ("rules as data")
+├── requirements.txt      # Python runtime dependencies
+├── pytest.ini            # Pytest configuration with pythonpath = src .
+└── .env.example          # Environment variables template
 ```
 
 ## Tests
@@ -199,7 +215,9 @@ demo/                  scripted demo repositories (ShopWise, TaskFlow) and the d
 python -m pytest
 ```
 
-Tests that need Neo4j are skipped when it isn't reachable. They load fixtures into the graph, which replaces whatever analysis it held — run them when you aren't demoing. LLM-dependent code is tested with fake models; `scripts/check_llm.py` checks the real providers.
+The automated test suite contains **211 test cases** across 18 test files (181 passed offline, 29 skipped without live Neo4j AuraDB credentials). Tests that need Neo4j load isolated fixtures into the graph. LLM-dependent code is tested deterministically with simulated responses; `python scripts/check_llm.py` verifies live provider credentials.
+
+For full testing methodology, fixture guidelines, and test matrices, refer to [`docs/TESTING.md`](docs/TESTING.md).
 
 ## Evaluation
 
