@@ -50,7 +50,7 @@ python -m venv venv
 venv\Scripts\activate          # macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
 copy .env.example .env         # macOS/Linux: cp .env.example .env — then fill it in
-python server.py
+python src/server.py
 ```
 
 Open http://localhost:8000 and paste a repository URL, e.g. `https://github.com/nsidnev/fastapi-realworld-example-app`.
@@ -142,7 +142,7 @@ The **Code Review** section (or `review_cli.py`) reviews the diff of the last N 
 **From the command line:**
 
 ```bash
-python review_cli.py --repo-path path/to/checkout --commits 5
+python src/review_cli.py --repo-path path/to/checkout --commits 5
 ```
 
 Add `--raise` to file issues, `--base <sha>` to review `base..HEAD`, and `--fail-on high` to exit non-zero when a finding at that severity exists.

@@ -4,6 +4,9 @@ import sys
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(ROOT, "src")
+if os.path.exists(SRC) and SRC not in sys.path:
+    sys.path.insert(0, SRC)
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 

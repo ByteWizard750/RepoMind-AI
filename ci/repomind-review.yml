@@ -44,7 +44,7 @@ jobs:
       - name: Check out RepoMind
         uses: actions/checkout@v4
         with:
-          repository: Sriram-Kommmana/repoMindAI
+          repository: ByteWizard750/RepoMind-AI
           path: .repomind
           # token: ${{ secrets.REPOMIND_CHECKOUT_TOKEN }}
 
@@ -64,4 +64,4 @@ jobs:
           BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
           BEDROCK_REGION: ${{ secrets.BEDROCK_REGION }}
           REPOMIND_CACHE_DIR: ${{ runner.temp }}/repomind-cache
-        run: python .repomind/review_cli.py --repo-path . --base "${{ github.event.before }}" --raise
+        run: PYTHONPATH=.repomind/src python .repomind/src/review_cli.py --repo-path . --base "${{ github.event.before }}" --raise

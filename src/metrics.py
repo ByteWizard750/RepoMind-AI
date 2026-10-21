@@ -15,7 +15,16 @@ from contextlib import contextmanager
 import llm
 import workspace
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval", "results")
+def _find_results_dir():
+    p = os.path.dirname(os.path.abspath(__file__))
+    while p and p != os.path.dirname(p):
+        cand = os.path.join(p, "eval", "results")
+        if os.path.exists(cand):
+            return cand
+        p = os.path.dirname(p)
+    return os.path.join(os.getcwd(), "eval", "results")
+
+RESULTS_DIR = _find_results_dir()
 REPORTS = ("drift", "qa", "review", "adr", "efficiency")
 FEATURES = {"drift": "Drift explanations", "adr": "Decision records", "docs": "Documentation",
             "review": "Code review", "qa": "Q&A"}

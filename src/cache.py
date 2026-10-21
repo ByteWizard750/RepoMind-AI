@@ -16,7 +16,7 @@ import threading
 
 import llm
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_DIR = os.environ.get("REPOMIND_CACHE_DIR", os.path.join(ROOT, ".cache"))
 # Bump when a prompt or output format changes, or when the parser starts
 # producing different edges (the prompts are built from the graph), so old

@@ -11,7 +11,16 @@ from typing import Literal, Optional
 import yaml
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-DEFAULT_RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rules.yaml")
+def _find_default_rules():
+    p = os.path.dirname(os.path.abspath(__file__))
+    while p and p != os.path.dirname(p):
+        cand = os.path.join(p, "rules.yaml")
+        if os.path.exists(cand):
+            return cand
+        p = os.path.dirname(p)
+    return os.path.join(os.getcwd(), "rules.yaml")
+
+DEFAULT_RULES_PATH = _find_default_rules()
 MAX_RULES_YAML_CHARS = 20_000
 
 _LAYER_NAME = r"^[a-z][a-z_]{0,29}$"

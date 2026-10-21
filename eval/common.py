@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(ROOT, "eval", "results")
+sys.path.insert(0, os.path.join(ROOT, "src"))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tests"))
 os.chdir(ROOT)
